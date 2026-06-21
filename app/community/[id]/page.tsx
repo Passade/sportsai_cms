@@ -1,6 +1,7 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import CmsImageUpload from "@/components/cms-image-upload";
 import {
   CmsCommunityPostOption,
   CommunityPostKind,
@@ -234,6 +235,13 @@ export default function EditCommunityPostPage() {
               <Field label="Title" value={form.title} onChange={(value) => updateField("title", value)} />
               <Field label="Question" value={form.question} onChange={(value) => updateField("question", value)} />
               <Field label="Post Image URL" value={form.postImageUrl} onChange={(value) => updateField("postImageUrl", value)} />
+              <div className="md:col-span-2">
+                <CmsImageUpload
+                  label="Upload Post Image"
+                  value={form.postImageUrl}
+                  onUploaded={(url) => updateField("postImageUrl", url)}
+                />
+              </div>
               <Field label="Fixture ID" value={form.fixtureId} onChange={(value) => updateField("fixtureId", value)} />
               <Field label="Team ID" value={form.teamId} onChange={(value) => updateField("teamId", value)} />
               <Field label="Stream ID" value={form.streamId} onChange={(value) => updateField("streamId", value)} />
@@ -285,6 +293,13 @@ export default function EditCommunityPostPage() {
                         value={option.imageUrl || ""}
                         onChange={(value) => updateOptionLocal(option.$id, "imageUrl", value)}
                       />
+                      <div className="md:col-span-5">
+                        <CmsImageUpload
+                          label="Upload Option Image"
+                          value={option.imageUrl || ""}
+                          onUploaded={(url) => updateOptionLocal(option.$id, "imageUrl", url)}
+                        />
+                      </div>
                       <Field
                         label="Order"
                         value={String(option.sortOrder ?? 999)}
@@ -333,6 +348,13 @@ export default function EditCommunityPostPage() {
                       value={newOption.imageUrl}
                       onChange={(value) => setNewOption((current) => ({ ...current, imageUrl: value }))}
                     />
+                    <div className="md:col-span-4">
+                      <CmsImageUpload
+                        label="Upload New Option Image"
+                        value={newOption.imageUrl}
+                        onUploaded={(url) => setNewOption((current) => ({ ...current, imageUrl: url }))}
+                      />
+                    </div>
                     <Field
                       label="Order"
                       value={newOption.sortOrder}

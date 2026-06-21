@@ -1,6 +1,7 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import CmsImageUpload from "@/components/cms-image-upload";
 import {
   CmsTeam,
   EventStatus,
@@ -483,6 +484,14 @@ export default function EditEventPage() {
                   value={thumbnail}
                   onChange={setThumbnail}
                   placeholder="Thumbnail URL"
+                />
+              </div>
+
+              <div className="col-span-12">
+                <CmsImageUpload
+                  label="Upload Event Thumbnail"
+                  value={thumbnail}
+                  onUploaded={setThumbnail}
                 />
               </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import CmsImageUpload from "@/components/cms-image-upload";
 import { CommunityPostKind, createCmsCommunityPost } from "@/lib/cms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -150,6 +151,13 @@ export default function CreateCommunityPostPage() {
               <Field label="Title" value={form.title} onChange={(value) => updateField("title", value)} />
               <Field label="Question" value={form.question} onChange={(value) => updateField("question", value)} />
               <Field label="Post Image URL" value={form.postImageUrl} onChange={(value) => updateField("postImageUrl", value)} />
+              <div className="md:col-span-2">
+                <CmsImageUpload
+                  label="Upload Post Image"
+                  value={form.postImageUrl}
+                  onUploaded={(url) => updateField("postImageUrl", url)}
+                />
+              </div>
               <Field label="Fixture ID" value={form.fixtureId} onChange={(value) => updateField("fixtureId", value)} />
               <Field label="Team ID" value={form.teamId} onChange={(value) => updateField("teamId", value)} />
               <Field label="Stream ID" value={form.streamId} onChange={(value) => updateField("streamId", value)} />
@@ -191,6 +199,13 @@ export default function CreateCommunityPostPage() {
                         value={option.imageUrl}
                         onChange={(value) => updateOption(index, "imageUrl", value)}
                       />
+                      <div className="md:col-span-3">
+                        <CmsImageUpload
+                          label="Upload Option Image"
+                          value={option.imageUrl}
+                          onUploaded={(url) => updateOption(index, "imageUrl", url)}
+                        />
+                      </div>
                       <Field
                         label="Order"
                         value={option.sortOrder}

@@ -1,6 +1,7 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import CmsImageUpload from "@/components/cms-image-upload";
 import { CmsTeam, createCmsPlayer, getCmsTeams } from "@/lib/cms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -245,6 +246,14 @@ export default function CreatePlayerPage() {
                 onChange={(value) => updateField("imageUrl", value)}
                 placeholder="https://..."
               />
+
+              <div className="md:col-span-2">
+                <CmsImageUpload
+                  label="Upload Player Photo"
+                  value={form.imageUrl}
+                  onUploaded={(url) => updateField("imageUrl", url)}
+                />
+              </div>
             </div>
 
             <label className="mt-6 flex items-center gap-3">

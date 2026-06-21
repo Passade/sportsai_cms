@@ -9,6 +9,13 @@ export type EventStatus =
   | "vod"
   | "hidden";
 
+export type FixtureStatus =
+  | "upcoming"
+  | "live"
+  | "completed"
+  | "cancelled"
+  | "hidden";
+
 export type VodType = "video" | "youtube";
 
 export type CmsTeam = {
@@ -54,6 +61,52 @@ export type CreatePlayerInput = {
   active: boolean;
 };
 
+export type CmsFixture = {
+  $id: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  sport?: string;
+  communityName?: string;
+  competition?: string;
+  venue?: string;
+  matchDate?: string;
+  status?: FixtureStatus | string;
+  homeScore?: number;
+  awayScore?: number;
+  isStreamed?: boolean;
+  streamId?: string;
+  searchText?: string;
+};
+
+export type CreateFixtureInput = {
+  homeTeam: string;
+  awayTeam: string;
+  sport: string;
+  communityName: string;
+  competition: string;
+  venue: string;
+  matchDate: string;
+  status: FixtureStatus;
+  homeScore: string;
+  awayScore: string;
+  isStreamed: boolean;
+  streamId: string;
+};
+
+export type CmsPrediction = {
+  $id: string;
+  userName?: string;
+  fixtureId?: string;
+  sport?: string;
+  communityName?: string;
+  predictedWinner?: string;
+  predictedHomeScore?: number;
+  predictedAwayScore?: number;
+  pointsAwarded?: number;
+  userId?: string;
+  predictionStatus?: string;
+};
+
 export type CreateEventInput = {
   title: string;
   status: EventStatus;
@@ -91,8 +144,12 @@ export function buildSearchText(data: Record<string, any>) {
     data.number,
     data.age,
     data.country,
+    data.communityName,
+    data.homeScore,
+    data.awayScore,
+    data.streamId,
   ]
-    .filter(Boolean)
+    .filter((value) => value !== undefined && value !== null && value !== "")
     .map((value) => String(value))
     .join(" ")
     .toLowerCase();
@@ -122,6 +179,48 @@ function toDateInputValue(value?: string) {
   return date.toISOString().slice(0, 10);
 }
 
+function toDateTimeLocalInputValue(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function toIsoDateTime(value: string) {
+  if (!value) {
+    return new Date().toISOString();
+  }
+
+  return new Date(value).toISOString();
+}
+
+function normalizeText(value?: string) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getActualWinner(fixture: CmsFixture) {
+  const homeScore = Number(fixture.homeScore ?? 0);
+  const awayScore = Number(fixture.awayScore ?? 0);
+
+  if (homeScore > awayScore) {
+    return fixture.homeTeam || "Home";
+  }
+
+  if (awayScore > homeScore) {
+    return fixture.awayTeam || "Away";
+  }
+
+  return "Draw";
+}
+
 function buildPlayerData(input: CreatePlayerInput) {
   const data: Record<string, any> = {
     name: input.name.trim(),
@@ -145,8 +244,34 @@ function buildPlayerData(input: CreatePlayerInput) {
   return data;
 }
 
+function buildFixtureData(input: CreateFixtureInput) {
+  const data = {
+    homeTeam: input.homeTeam.trim(),
+    awayTeam: input.awayTeam.trim(),
+    sport: input.sport.trim(),
+    communityName: input.communityName.trim(),
+    competition: input.competition.trim(),
+    venue: input.venue.trim(),
+    matchDate: toIsoDateTime(input.matchDate),
+    status: input.status,
+    homeScore: toInteger(input.homeScore),
+    awayScore: toInteger(input.awayScore),
+    isStreamed: input.isStreamed,
+    streamId: input.streamId.trim(),
+  };
+
+  return {
+    ...data,
+    searchText: buildSearchText(data),
+  };
+}
+
 export function normalizeDateForInput(value?: string) {
   return toDateInputValue(value);
+}
+
+export function normalizeDateTimeForInput(value?: string) {
+  return toDateTimeLocalInputValue(value);
 }
 
 export async function getCmsTeams() {
@@ -265,6 +390,202 @@ export async function deleteCmsPlayer(id: string) {
   );
 }
 
+export async function getCmsFixtures() {
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.fixturesCollectionId,
+    [Query.orderDesc("matchDate"), Query.limit(500)]
+  );
+
+  return result.documents.map((fixture: any) => ({
+    $id: fixture.$id,
+    homeTeam: fixture.homeTeam || "",
+    awayTeam: fixture.awayTeam || "",
+    sport: fixture.sport || "",
+    communityName: fixture.communityName || "",
+    competition: fixture.competition || "",
+    venue: fixture.venue || "",
+    matchDate: fixture.matchDate || "",
+    status: fixture.status || "upcoming",
+    homeScore: typeof fixture.homeScore === "number" ? fixture.homeScore : 0,
+    awayScore: typeof fixture.awayScore === "number" ? fixture.awayScore : 0,
+    isStreamed: Boolean(fixture.isStreamed),
+    streamId: fixture.streamId || "",
+    searchText: fixture.searchText || "",
+  }));
+}
+
+export async function getCmsFixtureById(id: string) {
+  return databases.getDocument(
+    config.databaseId,
+    config.fixturesCollectionId,
+    id
+  );
+}
+
+export async function createCmsFixture(input: CreateFixtureInput) {
+  return databases.createDocument(
+    config.databaseId,
+    config.fixturesCollectionId,
+    ID.unique(),
+    buildFixtureData(input)
+  );
+}
+
+export async function updateCmsFixture(id: string, input: CreateFixtureInput) {
+  return databases.updateDocument(
+    config.databaseId,
+    config.fixturesCollectionId,
+    id,
+    buildFixtureData(input)
+  );
+}
+
+export async function updateCmsFixtureStatus(id: string, status: FixtureStatus) {
+  const fixture: any = await getCmsFixtureById(id);
+
+  const data = {
+    homeTeam: fixture.homeTeam || "",
+    awayTeam: fixture.awayTeam || "",
+    sport: fixture.sport || "",
+    communityName: fixture.communityName || "",
+    competition: fixture.competition || "",
+    venue: fixture.venue || "",
+    matchDate: fixture.matchDate || "",
+    status,
+    homeScore: typeof fixture.homeScore === "number" ? fixture.homeScore : 0,
+    awayScore: typeof fixture.awayScore === "number" ? fixture.awayScore : 0,
+    isStreamed: Boolean(fixture.isStreamed),
+    streamId: fixture.streamId || "",
+  };
+
+  return databases.updateDocument(
+    config.databaseId,
+    config.fixturesCollectionId,
+    id,
+    {
+      status,
+      searchText: buildSearchText(data),
+    }
+  );
+}
+
+export async function deleteCmsFixture(id: string) {
+  return databases.deleteDocument(
+    config.databaseId,
+    config.fixturesCollectionId,
+    id
+  );
+}
+
+export async function getCmsPredictionsForFixture(fixtureId: string) {
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.predictionsCollectionId,
+    [Query.equal("fixtureId", fixtureId), Query.limit(500)]
+  );
+
+  return result.documents.map((prediction: any) => ({
+    $id: prediction.$id,
+    userName: prediction.userName || "",
+    fixtureId: prediction.fixtureId || "",
+    sport: prediction.sport || "",
+    communityName: prediction.communityName || "",
+    predictedWinner: prediction.predictedWinner || "",
+    predictedHomeScore:
+      typeof prediction.predictedHomeScore === "number"
+        ? prediction.predictedHomeScore
+        : 0,
+    predictedAwayScore:
+      typeof prediction.predictedAwayScore === "number"
+        ? prediction.predictedAwayScore
+        : 0,
+    pointsAwarded:
+      typeof prediction.pointsAwarded === "number" ? prediction.pointsAwarded : 0,
+    userId: prediction.userId || "",
+    predictionStatus: prediction.predictionStatus || "",
+  }));
+}
+
+export function calculatePredictionPoints(
+  fixture: CmsFixture,
+  prediction: CmsPrediction
+) {
+  const actualWinner = getActualWinner(fixture);
+  const predictedWinner = prediction.predictedWinner || "";
+  const winnerCorrect =
+    normalizeText(predictedWinner) === normalizeText(actualWinner) ||
+    (normalizeText(actualWinner) === "draw" &&
+      ["draw", "tie"].includes(normalizeText(predictedWinner)));
+
+  const exactScore =
+    Number(prediction.predictedHomeScore ?? 0) ===
+      Number(fixture.homeScore ?? 0) &&
+    Number(prediction.predictedAwayScore ?? 0) === Number(fixture.awayScore ?? 0);
+
+  let points = 0;
+
+  if (winnerCorrect) {
+    points += 3;
+  }
+
+  if (exactScore) {
+    points += 2;
+  }
+
+  return {
+    actualWinner,
+    winnerCorrect,
+    exactScore,
+    points,
+  };
+}
+
+export async function scoreCmsPredictionsForFixture(fixtureId: string) {
+  const fixture: any = await getCmsFixtureById(fixtureId);
+  const predictions = await getCmsPredictionsForFixture(fixtureId);
+
+  const normalizedFixture: CmsFixture = {
+    $id: fixture.$id,
+    homeTeam: fixture.homeTeam || "",
+    awayTeam: fixture.awayTeam || "",
+    homeScore: typeof fixture.homeScore === "number" ? fixture.homeScore : 0,
+    awayScore: typeof fixture.awayScore === "number" ? fixture.awayScore : 0,
+  };
+
+  let totalScored = 0;
+
+  for (const prediction of predictions) {
+    const result = calculatePredictionPoints(normalizedFixture, prediction);
+
+    await databases.updateDocument(
+      config.databaseId,
+      config.predictionsCollectionId,
+      prediction.$id,
+      {
+        pointsAwarded: result.points,
+        predictionStatus: "scored",
+      }
+    );
+
+    totalScored += 1;
+  }
+
+  await databases.updateDocument(
+    config.databaseId,
+    config.fixturesCollectionId,
+    fixtureId,
+    {
+      status: "completed",
+    }
+  );
+
+  return {
+    totalScored,
+    actualWinner: getActualWinner(normalizedFixture),
+  };
+}
+
 export async function getCmsEvents() {
   const result = await databases.listDocuments(
     config.databaseId,
@@ -357,14 +678,6 @@ export async function updateCmsEvent(id: string, input: CreateEventInput) {
 
 export async function deleteCmsEvent(id: string) {
   return databases.deleteDocument(config.databaseId, config.streamsCollectionId, id);
-}
-
-export async function deleteCmsFixture(id: string) {
-  return databases.deleteDocument(
-    config.databaseId,
-    config.fixturesCollectionId,
-    id
-  );
 }
 
 async function safeDeleteFixture(id: string) {

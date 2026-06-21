@@ -85,9 +85,10 @@ export default function DashboardPage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-8 py-10">
-          <div className="grid gap-5 md:grid-cols-4">
-            <StatCard label="Content Hub" value="Events" />
-            <StatCard label="Publishing" value="Live + VOD" />
+          <div className="grid gap-5 md:grid-cols-5">
+            <StatCard label="Content" value="Events" />
+            <StatCard label="Fixtures" value="Scores" />
+            <StatCard label="Predictions" value="Scoring" />
             <StatCard label="Teams" value="Managed" />
             <StatCard label="Players" value="Managed" />
           </div>
@@ -103,10 +104,9 @@ export default function DashboardPage() {
               </h2>
 
               <p className="mt-3 text-lg leading-8 text-slate-500">
-                Start with Events / Live Streams. Teams are managed from the
-                Teams section and automatically appear in event dropdowns.
-                Players are managed from the Players section and can be linked
-                to teams by team name.
+                Manage events, teams, players and prediction fixtures. Use
+                Fixtures to update match scores and score user predictions after
+                a fixture is completed.
               </p>
             </div>
           </div>
@@ -127,8 +127,15 @@ export default function DashboardPage() {
             />
 
             <DashboardCard
+              title="Fixtures / Predictions"
+              description="Manage prediction fixtures, update scores, mark statuses and score predictions."
+              href="/fixtures"
+              badge="Available"
+            />
+
+            <DashboardCard
               title="Teams"
-              description="Create and manage team names, short names and logos used in event dropdowns."
+              description="Create and manage team names, short names and logos used in dropdowns."
               href="/teams"
               badge="Available"
             />
@@ -141,17 +148,10 @@ export default function DashboardPage() {
             />
 
             <DashboardCard
-              title="Fixtures"
-              description="Coming next: manage prediction fixtures, match results and fixture status."
-              href="/events"
-              badge="Coming next"
-            />
-
-            <DashboardCard
-              title="Predictions"
-              description="Coming next: manage prediction fixtures, community voting and results."
-              href="/events"
-              badge="Coming next"
+              title="Prediction Rules"
+              description="Current scoring: 3 points for correct winner and 2 bonus points for exact score."
+              href="/fixtures"
+              badge="Scoring"
             />
           </div>
         </section>

@@ -85,10 +85,11 @@ export default function DashboardPage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-8 py-10">
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-4">
             <StatCard label="Content Hub" value="Events" />
             <StatCard label="Publishing" value="Live + VOD" />
             <StatCard label="Teams" value="Managed" />
+            <StatCard label="Players" value="Managed" />
           </div>
 
           <div className="mt-10 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
@@ -102,10 +103,10 @@ export default function DashboardPage() {
               </h2>
 
               <p className="mt-3 text-lg leading-8 text-slate-500">
-                Start with Events / Live Streams. One event can be used as an
-                upcoming fixture, a live stream, or a VOD replay depending on
-                the status you choose. Teams are managed from the Teams section
-                and automatically appear in event dropdowns.
+                Start with Events / Live Streams. Teams are managed from the
+                Teams section and automatically appear in event dropdowns.
+                Players are managed from the Players section and can be linked
+                to teams by team name.
               </p>
             </div>
           </div>
@@ -133,6 +134,13 @@ export default function DashboardPage() {
             />
 
             <DashboardCard
+              title="Players"
+              description="Create and manage player profiles, team names, schools, positions and photos."
+              href="/players"
+              badge="Available"
+            />
+
+            <DashboardCard
               title="Fixtures"
               description="Coming next: manage prediction fixtures, match results and fixture status."
               href="/events"
@@ -142,13 +150,6 @@ export default function DashboardPage() {
             <DashboardCard
               title="Predictions"
               description="Coming next: manage prediction fixtures, community voting and results."
-              href="/events"
-              badge="Coming next"
-            />
-
-            <DashboardCard
-              title="Players"
-              description="Coming next: manage player profiles, team rosters and sport details."
               href="/events"
               badge="Coming next"
             />

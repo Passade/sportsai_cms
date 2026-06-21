@@ -1,4 +1,4 @@
-import { Account, Client, Databases, ID, Query } from "appwrite";
+import { Account, Client, Databases, ID, Query, Storage } from "appwrite";
 
 export const config = {
   endpoint: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!,
@@ -19,6 +19,8 @@ export const config = {
     process.env.NEXT_PUBLIC_APPWRITE_COMMUNITY_POST_VOTES_COLLECTION_ID!,
   communityPostReactionsCollectionId:
     process.env.NEXT_PUBLIC_APPWRITE_COMMUNITY_POST_REACTIONS_COLLECTION_ID!,
+
+  mediaBucketId: process.env.NEXT_PUBLIC_APPWRITE_MEDIA_BUCKET_ID!,
 };
 
 export const client = new Client()
@@ -27,5 +29,6 @@ export const client = new Client()
 
 export const account = new Account(client);
 export const databases = new Databases(client);
+export const storage = new Storage(client);
 
 export { ID, Query };

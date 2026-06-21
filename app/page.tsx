@@ -1,332 +1,159 @@
-"use client";
-
 import CmsAuthGuard from "@/components/cms-auth-guard";
 import CmsLogoutButton from "@/components/cms-logout-button";
-import { getCmsEvents } from "@/lib/cms";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
 
-function getEventTitle(event: any) {
-  if (event?.title) return event.title;
+function DashboardCard({
+  title,
+  description,
+  href,
+  badge,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  badge?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-cyan-300 hover:shadow-lg"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          {badge ? (
+            <span className="inline-flex rounded-full bg-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-cyan-700">
+              {badge}
+            </span>
+          ) : null}
 
-  return `${event?.homeTeam || "Home"} vs ${event?.awayTeam || "Away"}`;
+          <h2 className="mt-4 text-2xl font-bold text-[#29496d]">{title}</h2>
+        </div>
+
+        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-500 text-xl font-bold text-white transition group-hover:bg-cyan-600">
+          →
+        </div>
+      </div>
+
+      <p className="mt-4 text-base leading-7 text-slate-500">{description}</p>
+    </Link>
+  );
 }
 
-function getStatusClass(status?: string) {
-  const cleanStatus = String(status || "upcoming").toLowerCase();
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+      <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
 
-  if (cleanStatus === "live") {
-    return "bg-red-100 text-red-700";
-  }
-
-  if (cleanStatus === "vod") {
-    return "bg-purple-100 text-purple-700";
-  }
-
-  if (cleanStatus === "completed") {
-    return "bg-green-100 text-green-700";
-  }
-
-  if (cleanStatus === "cancelled" || cleanStatus === "hidden") {
-    return "bg-slate-200 text-slate-600";
-  }
-
-  if (cleanStatus === "waiting") {
-    return "bg-yellow-100 text-yellow-700";
-  }
-
-  return "bg-cyan-100 text-cyan-700";
+      <p className="mt-2 text-3xl font-bold text-[#29496d]">{value}</p>
+    </div>
+  );
 }
 
-function formatEventDate(date?: string) {
-  if (!date) return "Date unavailable";
-
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
-  }
-
-  return parsedDate.toLocaleString("en-GB", {
-    timeZone: "Africa/Harare",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-export default function EventsPage() {
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-
-  async function loadEvents() {
-    try {
-      setLoading(true);
-
-      const data = await getCmsEvents();
-
-      setEvents(data || []);
-    } catch (error) {
-      console.error(error);
-      alert("Could not load events. Check your Appwrite setup.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  const filteredEvents = useMemo(() => {
-    const cleanQuery = query.trim().toLowerCase();
-
-    return events.filter((event) => {
-      const status = String(event?.status || "").toLowerCase();
-
-      const matchesStatus =
-        statusFilter === "all" || status === statusFilter.toLowerCase();
-
-      const searchText = [
-        event?.title,
-        event?.homeTeam,
-        event?.awayTeam,
-        event?.competition,
-        event?.sport,
-        event?.venue,
-        event?.status,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesQuery = !cleanQuery || searchText.includes(cleanQuery);
-
-      return matchesStatus && matchesQuery;
-    });
-  }, [events, query, statusFilter]);
-
+export default function DashboardPage() {
   return (
     <CmsAuthGuard>
-      <main className="min-h-screen bg-[#f8fafc] px-8 py-8 text-[#29496d]">
-        <div className="mx-auto max-w-7xl">
-          <div className="flex items-center justify-between gap-4">
-            <Link href="/" className="text-cyan-600 font-medium">
-              Back to dashboard
-            </Link>
-
-            <CmsLogoutButton />
-          </div>
-
-          <div className="mt-4 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+      <main className="min-h-screen bg-[#f8fafc] text-[#29496d]">
+        <section className="border-b border-slate-200 bg-white">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-5 px-8 py-6">
             <div>
               <p className="text-sm font-bold uppercase tracking-[3px] text-cyan-600">
-                CMS
+                SportsAI CMS
               </p>
 
-              <h1 className="mt-2 text-5xl font-bold">Events</h1>
-
-              <p className="mt-3 max-w-2xl text-slate-500">
-                Manage fixtures, upcoming matches, live streams and VOD replays
-                from one place.
-              </p>
+              <h1 className="mt-2 text-4xl font-bold">Admin Dashboard</h1>
             </div>
 
-            <Link
-              href="/events/create"
-              className="inline-flex items-center justify-center rounded bg-cyan-500 px-8 py-4 text-lg font-bold text-white transition hover:bg-cyan-600"
-            >
-              + Create Event
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/events/create"
+                className="rounded bg-cyan-500 px-7 py-4 text-lg font-bold text-white transition hover:bg-cyan-600"
+              >
+                + Create Event
+              </Link>
+
+              <CmsLogoutButton />
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-8 py-10">
+          <div className="grid gap-5 md:grid-cols-3">
+            <StatCard label="Content Hub" value="Events" />
+            <StatCard label="Publishing" value="Live + VOD" />
+            <StatCard label="Teams" value="Managed" />
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-[1fr_260px_auto]">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by team, competition, sport, venue..."
-              className="h-14 w-full border border-slate-300 bg-white px-5 text-lg text-[#29496d] outline-none placeholder:text-[#9fb0c2] focus:border-cyan-500"
+          <div className="mt-10 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
+            <div className="max-w-3xl">
+              <p className="text-sm font-bold uppercase tracking-[3px] text-cyan-600">
+                Quick Start
+              </p>
+
+              <h2 className="mt-3 text-3xl font-bold">
+                Create and manage your SportsAI content
+              </h2>
+
+              <p className="mt-3 text-lg leading-8 text-slate-500">
+                Start with Events / Live Streams. One event can be used as an
+                upcoming fixture, a live stream, or a VOD replay depending on
+                the status you choose. Teams are managed from the Teams section
+                and automatically appear in event dropdowns.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <DashboardCard
+              title="Events / Live Streams"
+              description="Create fixtures, upcoming matches, live broadcasts and VOD entries."
+              href="/events"
+              badge="Available"
             />
 
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="h-14 w-full border border-slate-300 bg-white px-5 text-lg text-[#29496d] outline-none focus:border-cyan-500"
-            >
-              <option value="all">All statuses</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="live">Live</option>
-              <option value="waiting">Waiting</option>
-              <option value="completed">Completed</option>
-              <option value="vod">VOD</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="hidden">Hidden</option>
-            </select>
+            <DashboardCard
+              title="Create Event"
+              description="Quickly add a new match, stream URL, VOD URL, teams, venue and match date."
+              href="/events/create"
+              badge="Quick action"
+            />
 
-            <button
-              type="button"
-              onClick={loadEvents}
-              className="h-14 border border-slate-300 bg-white px-8 text-lg font-bold text-[#29496d] transition hover:border-cyan-400"
-            >
-              Refresh
-            </button>
+            <DashboardCard
+              title="Teams"
+              description="Create and manage team names, short names and logos used in event dropdowns."
+              href="/teams"
+              badge="Available"
+            />
+
+            <DashboardCard
+              title="Fixtures"
+              description="Coming next: manage prediction fixtures, match results and fixture status."
+              href="/events"
+              badge="Coming next"
+            />
+
+            <DashboardCard
+              title="Predictions"
+              description="Coming next: manage prediction fixtures, community voting and results."
+              href="/events"
+              badge="Coming next"
+            />
+
+            <DashboardCard
+              title="Players"
+              description="Coming next: manage player profiles, team rosters and sport details."
+              href="/events"
+              badge="Coming next"
+            />
           </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                Total
-              </p>
-              <p className="mt-2 text-3xl font-bold">{events.length}</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                Upcoming
-              </p>
-              <p className="mt-2 text-3xl font-bold">
-                {
-                  events.filter(
-                    (event) =>
-                      String(event?.status || "").toLowerCase() === "upcoming"
-                  ).length
-                }
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                Live
-              </p>
-              <p className="mt-2 text-3xl font-bold">
-                {
-                  events.filter(
-                    (event) =>
-                      String(event?.status || "").toLowerCase() === "live"
-                  ).length
-                }
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                VOD
-              </p>
-              <p className="mt-2 text-3xl font-bold">
-                {
-                  events.filter(
-                    (event) =>
-                      String(event?.status || "").toLowerCase() === "vod"
-                  ).length
-                }
-              </p>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-8">
-              <p className="text-slate-500">Loading events...</p>
-            </div>
-          ) : (
-            <div className="mt-10 space-y-4">
-              {filteredEvents.length === 0 ? (
-                <div className="rounded-3xl border border-slate-200 bg-white p-8">
-                  <p className="text-2xl font-bold">No events found</p>
-
-                  <p className="mt-2 text-slate-500">
-                    Create your first fixture, live stream or VOD replay.
-                  </p>
-
-                  <Link
-                    href="/events/create"
-                    className="mt-6 inline-flex rounded bg-cyan-500 px-7 py-4 text-lg font-bold text-white transition hover:bg-cyan-600"
-                  >
-                    + Create Event
-                  </Link>
-                </div>
-              ) : (
-                filteredEvents.map((event) => (
-                  <Link
-                    key={event.$id}
-                    href={`/events/${event.$id}`}
-                    className="block rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-400 hover:shadow-md"
-                  >
-                    <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <p className="text-2xl font-bold">
-                            {getEventTitle(event)}
-                          </p>
-
-                          <span
-                            className={`rounded-full px-4 py-1 text-sm font-bold ${getStatusClass(
-                              event?.status
-                            )}`}
-                          >
-                            {event?.status || "upcoming"}
-                          </span>
-
-                          {event?.isFeatured ? (
-                            <span className="rounded-full bg-orange-100 px-4 py-1 text-sm font-bold text-orange-700">
-                              Featured
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <p className="mt-2 text-slate-500">
-                          {event?.competition || "Competition unavailable"} ·{" "}
-                          {event?.sport || "Sport unavailable"}
-                        </p>
-
-                        <p className="mt-1 text-sm text-slate-400">
-                          {event?.venue || "Venue unavailable"}
-                        </p>
-
-                        <div className="mt-4 grid gap-2 text-sm text-slate-500 md:grid-cols-3">
-                          <p>
-                            <span className="font-bold text-[#29496d]">
-                              Match:
-                            </span>{" "}
-                            {event?.homeTeam || "Home"} vs{" "}
-                            {event?.awayTeam || "Away"}
-                          </p>
-
-                          <p>
-                            <span className="font-bold text-[#29496d]">
-                              Date:
-                            </span>{" "}
-                            {formatEventDate(event?.matchDate)}
-                          </p>
-
-                          <p>
-                            <span className="font-bold text-[#29496d]">
-                              Type:
-                            </span>{" "}
-                            {event?.vodType || "video"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-3">
-                        <span className="rounded bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600">
-                          Edit
-                        </span>
-
-                        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-500 text-xl font-bold text-white">
-                          →
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+        </section>
       </main>
     </CmsAuthGuard>
   );

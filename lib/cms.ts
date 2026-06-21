@@ -18,6 +18,12 @@ export type CmsTeam = {
   logoUrl?: string;
 };
 
+export type CreateTeamInput = {
+  name: string;
+  shortName: string;
+  logoUrl: string;
+};
+
 export type CreateEventInput = {
   title: string;
   status: EventStatus;
@@ -71,6 +77,52 @@ export async function getCmsTeams() {
     }))
     .filter((team) => team.name)
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getCmsTeamById(id: string) {
+  return databases.getDocument(
+    config.databaseId,
+    config.teamsCollectionId,
+    id
+  );
+}
+
+export async function createCmsTeam(input: CreateTeamInput) {
+  const data = {
+    name: input.name.trim(),
+    shortName: input.shortName.trim(),
+    logoUrl: input.logoUrl.trim(),
+  };
+
+  return databases.createDocument(
+    config.databaseId,
+    config.teamsCollectionId,
+    ID.unique(),
+    data
+  );
+}
+
+export async function updateCmsTeam(id: string, input: CreateTeamInput) {
+  const data = {
+    name: input.name.trim(),
+    shortName: input.shortName.trim(),
+    logoUrl: input.logoUrl.trim(),
+  };
+
+  return databases.updateDocument(
+    config.databaseId,
+    config.teamsCollectionId,
+    id,
+    data
+  );
+}
+
+export async function deleteCmsTeam(id: string) {
+  return databases.deleteDocument(
+    config.databaseId,
+    config.teamsCollectionId,
+    id
+  );
 }
 
 export async function getCmsEvents() {

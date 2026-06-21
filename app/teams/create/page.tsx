@@ -1,6 +1,7 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import CmsImageUpload from "@/components/cms-image-upload";
 import { createCmsTeam } from "@/lib/cms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -100,6 +101,12 @@ export default function CreateTeamPage() {
             value={logoUrl}
             onChange={setLogoUrl}
             placeholder="https://example.com/logo.png"
+          />
+
+          <CmsImageUpload
+            label="Upload Team Logo"
+            value={logoUrl}
+            onUploaded={setLogoUrl}
           />
 
           {logoUrl ? (

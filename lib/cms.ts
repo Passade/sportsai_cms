@@ -206,6 +206,52 @@ function normalizeText(value?: string) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeDateTimeMs(value?: string) {
+  if (!value) {
+    return 0;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 0;
+  }
+
+  return date.getTime();
+}
+
+function isSameFixtureIdentity(
+  existingFixture: CmsFixture,
+  newFixture: {
+    homeTeam: string;
+    awayTeam: string;
+    matchDate: string;
+    competition: string;
+  }
+) {
+  const sameHomeTeam =
+    normalizeText(existingFixture.homeTeam) === normalizeText(newFixture.homeTeam);
+
+  const sameAwayTeam =
+    normalizeText(existingFixture.awayTeam) === normalizeText(newFixture.awayTeam);
+
+  const sameCompetition =
+    normalizeText(existingFixture.competition) ===
+    normalizeText(newFixture.competition);
+
+  const existingTime = normalizeDateTimeMs(existingFixture.matchDate);
+  const newTime = normalizeDateTimeMs(newFixture.matchDate);
+
+  // Treat fixtures as duplicates if the match time is the same minute.
+  // This protects against tiny second/millisecond differences.
+  const sameMatchMinute =
+    existingTime > 0 &&
+    newTime > 0 &&
+    Math.abs(existingTime - newTime) < 60 * 1000;
+
+  return sameHomeTeam && sameAwayTeam && sameCompetition && sameMatchMinute;
+}
+
 function getActualWinner(fixture: CmsFixture) {
   const homeScore = Number(fixture.homeScore ?? 0);
   const awayScore = Number(fixture.awayScore ?? 0);
@@ -423,7 +469,37 @@ export async function getCmsFixtureById(id: string) {
   );
 }
 
+export async function findDuplicateCmsFixture(input: CreateFixtureInput) {
+  const newFixture = buildFixtureData(input);
+
+  // No Appwrite field filters are used here on purpose.
+  // This avoids needing extra Appwrite indexes and still prevents duplicates
+  // for the current CMS scale by checking the latest 500 fixtures client-side.
+  const fixtures = await getCmsFixtures();
+
+  return fixtures.find((fixture) =>
+    isSameFixtureIdentity(fixture, {
+      homeTeam: newFixture.homeTeam,
+      awayTeam: newFixture.awayTeam,
+      matchDate: newFixture.matchDate,
+      competition: newFixture.competition,
+    })
+  );
+}
+
 export async function createCmsFixture(input: CreateFixtureInput) {
+  const duplicate = await findDuplicateCmsFixture(input);
+
+  if (duplicate) {
+    throw new Error(
+      `This fixture already exists: ${duplicate.homeTeam || "Home"} vs ${
+        duplicate.awayTeam || "Away"
+      } on ${duplicate.matchDate || "the same date"} in ${
+        duplicate.competition || "the same competition"
+      }. Existing fixture ID: ${duplicate.$id}`
+    );
+  }
+
   return databases.createDocument(
     config.databaseId,
     config.fixturesCollectionId,
@@ -433,6 +509,14 @@ export async function createCmsFixture(input: CreateFixtureInput) {
 }
 
 export async function updateCmsFixture(id: string, input: CreateFixtureInput) {
+  const duplicate = await findDuplicateCmsFixture(input);
+
+  if (duplicate && duplicate.$id !== id) {
+    throw new Error(
+      `Another fixture already exists with the same teams, match date and competition. Existing fixture ID: ${duplicate.$id}`
+    );
+  }
+
   return databases.updateDocument(
     config.databaseId,
     config.fixturesCollectionId,
@@ -736,4 +820,294 @@ export async function deleteCmsEventAndFixture(
     deletedEventId: eventId,
     deletedFixtureIds: Array.from(fixtureIdsToDelete),
   };
+}
+
+
+/* COMMUNITY CMS */
+
+export type CommunityPostKind = "poll" | "image" | "fixture" | "debate";
+
+export type CmsCommunityPost = {
+  $id: string;
+  kind?: CommunityPostKind;
+  source?: string;
+  handle?: string;
+  title?: string;
+  question?: string;
+  tag?: string;
+  postImageUrl?: string;
+  votesCount?: number;
+  selectedOptionId?: string;
+  fixtureId?: string;
+  teamId?: string;
+  streamId?: string;
+  createdBy?: string;
+  sortOrder?: number;
+  publishedAt?: string;
+  isActive?: boolean;
+  reactionsCount?: number;
+};
+
+export type CmsCommunityPostOption = {
+  $id: string;
+  postId?: string;
+  label?: string;
+  imageUrl?: string;
+  votesCount?: number;
+  percentage?: number;
+  sortOrder?: number;
+  isActive?: boolean;
+};
+
+export type CreateCommunityPostInput = {
+  kind: CommunityPostKind;
+  source: string;
+  handle: string;
+  title: string;
+  question: string;
+  tag: string;
+  postImageUrl: string;
+  fixtureId: string;
+  teamId: string;
+  streamId: string;
+  sortOrder: string;
+  publishedAt: string;
+  isActive: boolean;
+};
+
+export type CreateCommunityPostOptionInput = {
+  label: string;
+  imageUrl: string;
+  sortOrder: string;
+  isActive: boolean;
+};
+
+function communityNumber(value: string, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+function communityDateTime(value: string) {
+  if (!value) return new Date().toISOString();
+  return new Date(value).toISOString();
+}
+
+function communityDateTimeForInput(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function buildCommunityPostCreateData(input: CreateCommunityPostInput) {
+  return {
+    kind: input.kind,
+    source: input.source.trim(),
+    handle: input.handle.trim(),
+    title: input.title.trim(),
+    question: input.question.trim(),
+    tag: input.tag.trim(),
+    postImageUrl: input.postImageUrl.trim(),
+    votesCount: 0,
+    selectedOptionId: "",
+    fixtureId: input.fixtureId.trim(),
+    teamId: input.teamId.trim(),
+    streamId: input.streamId.trim(),
+    createdBy: "cms",
+    sortOrder: communityNumber(input.sortOrder, 999),
+    publishedAt: communityDateTime(input.publishedAt),
+    isActive: input.isActive,
+    reactionsCount: 0,
+  };
+}
+
+function buildCommunityPostUpdateData(input: CreateCommunityPostInput) {
+  return {
+    kind: input.kind,
+    source: input.source.trim(),
+    handle: input.handle.trim(),
+    title: input.title.trim(),
+    question: input.question.trim(),
+    tag: input.tag.trim(),
+    postImageUrl: input.postImageUrl.trim(),
+    fixtureId: input.fixtureId.trim(),
+    teamId: input.teamId.trim(),
+    streamId: input.streamId.trim(),
+    sortOrder: communityNumber(input.sortOrder, 999),
+    publishedAt: communityDateTime(input.publishedAt),
+    isActive: input.isActive,
+  };
+}
+
+function buildCommunityOptionCreateData(
+  postId: string,
+  input: CreateCommunityPostOptionInput
+) {
+  return {
+    postId,
+    label: input.label.trim(),
+    imageUrl: input.imageUrl.trim(),
+    votesCount: 0,
+    percentage: 0,
+    sortOrder: communityNumber(input.sortOrder, 999),
+    isActive: input.isActive,
+  };
+}
+
+function buildCommunityOptionUpdateData(input: CreateCommunityPostOptionInput) {
+  return {
+    label: input.label.trim(),
+    imageUrl: input.imageUrl.trim(),
+    sortOrder: communityNumber(input.sortOrder, 999),
+    isActive: input.isActive,
+  };
+}
+
+export function normalizeCommunityPublishedAtForInput(value?: string) {
+  return communityDateTimeForInput(value);
+}
+
+export async function getCmsCommunityPosts() {
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.communityPostsCollectionId,
+    [Query.orderAsc("sortOrder"), Query.orderDesc("publishedAt"), Query.limit(500)]
+  );
+
+  return result.documents.map((post: any) => ({
+    $id: post.$id,
+    kind: post.kind || "image",
+    source: post.source || "",
+    handle: post.handle || "",
+    title: post.title || "",
+    question: post.question || "",
+    tag: post.tag || "",
+    postImageUrl: post.postImageUrl || "",
+    votesCount: typeof post.votesCount === "number" ? post.votesCount : 0,
+    selectedOptionId: post.selectedOptionId || "",
+    fixtureId: post.fixtureId || "",
+    teamId: post.teamId || "",
+    streamId: post.streamId || "",
+    createdBy: post.createdBy || "",
+    sortOrder: typeof post.sortOrder === "number" ? post.sortOrder : 999,
+    publishedAt: post.publishedAt || "",
+    isActive: Boolean(post.isActive),
+    reactionsCount:
+      typeof post.reactionsCount === "number" ? post.reactionsCount : 0,
+  })) as CmsCommunityPost[];
+}
+
+export async function getCmsCommunityPostById(id: string) {
+  return databases.getDocument(
+    config.databaseId,
+    config.communityPostsCollectionId,
+    id
+  );
+}
+
+export async function getCmsCommunityOptionsForPost(postId: string) {
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.communityPostOptionsCollectionId,
+    [Query.equal("postId", postId), Query.orderAsc("sortOrder"), Query.limit(100)]
+  );
+
+  return result.documents.map((option: any) => ({
+    $id: option.$id,
+    postId: option.postId || "",
+    label: option.label || "",
+    imageUrl: option.imageUrl || "",
+    votesCount: typeof option.votesCount === "number" ? option.votesCount : 0,
+    percentage: typeof option.percentage === "number" ? option.percentage : 0,
+    sortOrder: typeof option.sortOrder === "number" ? option.sortOrder : 999,
+    isActive: Boolean(option.isActive),
+  })) as CmsCommunityPostOption[];
+}
+
+export async function createCmsCommunityPost(
+  input: CreateCommunityPostInput,
+  options: CreateCommunityPostOptionInput[]
+) {
+  const post = await databases.createDocument(
+    config.databaseId,
+    config.communityPostsCollectionId,
+    ID.unique(),
+    buildCommunityPostCreateData(input)
+  );
+
+  if (input.kind === "poll" || input.kind === "debate") {
+    for (const option of options.filter((item) => item.label.trim())) {
+      await databases.createDocument(
+        config.databaseId,
+        config.communityPostOptionsCollectionId,
+        ID.unique(),
+        buildCommunityOptionCreateData(post.$id, option)
+      );
+    }
+  }
+
+  return post;
+}
+
+export async function updateCmsCommunityPost(
+  id: string,
+  input: CreateCommunityPostInput
+) {
+  return databases.updateDocument(
+    config.databaseId,
+    config.communityPostsCollectionId,
+    id,
+    buildCommunityPostUpdateData(input)
+  );
+}
+
+export async function deleteCmsCommunityPost(id: string) {
+  const options = await getCmsCommunityOptionsForPost(id);
+
+  for (const option of options) {
+    await databases.deleteDocument(
+      config.databaseId,
+      config.communityPostOptionsCollectionId,
+      option.$id
+    );
+  }
+
+  return databases.deleteDocument(
+    config.databaseId,
+    config.communityPostsCollectionId,
+    id
+  );
+}
+
+export async function createCmsCommunityOption(
+  postId: string,
+  input: CreateCommunityPostOptionInput
+) {
+  return databases.createDocument(
+    config.databaseId,
+    config.communityPostOptionsCollectionId,
+    ID.unique(),
+    buildCommunityOptionCreateData(postId, input)
+  );
+}
+
+export async function updateCmsCommunityOption(
+  optionId: string,
+  input: CreateCommunityPostOptionInput
+) {
+  return databases.updateDocument(
+    config.databaseId,
+    config.communityPostOptionsCollectionId,
+    optionId,
+    buildCommunityOptionUpdateData(input)
+  );
+}
+
+export async function deleteCmsCommunityOption(optionId: string) {
+  return databases.deleteDocument(
+    config.databaseId,
+    config.communityPostOptionsCollectionId,
+    optionId
+  );
 }

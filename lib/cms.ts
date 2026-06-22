@@ -1044,12 +1044,108 @@ export async function updateCmsCommunityPost(
   );
 }
 
+async function safeDeleteCommunityDocument(
+  collectionId: string,
+  documentId: string
+) {
+  try {
+    await databases.deleteDocument(config.databaseId, collectionId, documentId);
+  } catch (error) {
+    console.warn("Community delete skipped:", collectionId, documentId, error);
+  }
+}
+
+async function listAllCommunityDocumentsByField(
+  collectionId: string,
+  field: string,
+  value: string
+) {
+  const documents: any[] = [];
+  let offset = 0;
+  const limit = 100;
+
+  while (true) {
+    const result = await databases.listDocuments(
+      config.databaseId,
+      collectionId,
+      [Query.equal(field, value), Query.limit(limit), Query.offset(offset)]
+    );
+
+    documents.push(...result.documents);
+
+    if (result.documents.length < limit) {
+      break;
+    }
+
+    offset += limit;
+  }
+
+  return documents;
+}
+
 export async function deleteCmsCommunityPost(id: string) {
   const options = await getCmsCommunityOptionsForPost(id);
 
+  /*
+   * Poll/debate posts have child option rows. Some installs also have
+   * vote/reaction rows. Delete those first, then options, then the post.
+   */
+
   for (const option of options) {
-    await databases.deleteDocument(
-      config.databaseId,
+    try {
+      const optionVotes = await listAllCommunityDocumentsByField(
+        config.communityPostVotesCollectionId,
+        "optionId",
+        option.$id
+      );
+
+      for (const vote of optionVotes) {
+        await safeDeleteCommunityDocument(
+          config.communityPostVotesCollectionId,
+          vote.$id
+        );
+      }
+    } catch (error) {
+      console.warn("Could not delete votes by optionId:", option.$id, error);
+    }
+  }
+
+  try {
+    const postVotes = await listAllCommunityDocumentsByField(
+      config.communityPostVotesCollectionId,
+      "postId",
+      id
+    );
+
+    for (const vote of postVotes) {
+      await safeDeleteCommunityDocument(
+        config.communityPostVotesCollectionId,
+        vote.$id
+      );
+    }
+  } catch (error) {
+    console.warn("Could not delete votes by postId:", id, error);
+  }
+
+  try {
+    const reactions = await listAllCommunityDocumentsByField(
+      config.communityPostReactionsCollectionId,
+      "postId",
+      id
+    );
+
+    for (const reaction of reactions) {
+      await safeDeleteCommunityDocument(
+        config.communityPostReactionsCollectionId,
+        reaction.$id
+      );
+    }
+  } catch (error) {
+    console.warn("Could not delete reactions by postId:", id, error);
+  }
+
+  for (const option of options) {
+    await safeDeleteCommunityDocument(
       config.communityPostOptionsCollectionId,
       option.$id
     );

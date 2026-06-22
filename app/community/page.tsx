@@ -46,9 +46,6 @@ export default function CommunityPage() {
         post.title,
         post.question,
         post.tag,
-        post.fixtureId,
-        post.teamId,
-        post.streamId,
       ]
         .filter(Boolean)
         .join(" ")

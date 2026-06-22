@@ -74,6 +74,7 @@ export type CmsFixture = {
   homeScore?: number;
   awayScore?: number;
   isStreamed?: boolean;
+  streamId?: string;
   searchText?: string;
 };
 

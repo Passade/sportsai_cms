@@ -10,6 +10,8 @@ export const config = {
   predictionsCollectionId: process.env.NEXT_PUBLIC_APPWRITE_PREDICTIONS_COLLECTION_ID!,
   teamsCollectionId: process.env.NEXT_PUBLIC_APPWRITE_TEAMS_COLLECTION_ID!,
   playersCollectionId: process.env.NEXT_PUBLIC_APPWRITE_PLAYERS_COLLECTION_ID!,
+  cmsAuditLogsCollectionId:
+  process.env.NEXT_PUBLIC_APPWRITE_CMS_AUDIT_LOGS_COLLECTION_ID!,
 
   communityPostsCollectionId:
     process.env.NEXT_PUBLIC_APPWRITE_COMMUNITY_POSTS_COLLECTION_ID!,

@@ -249,6 +249,13 @@ export default function DashboardPage() {
             />
 
             <DashboardCard
+              title="Audit Log"
+              description="Review recent CMS creates, updates, deletes, uploads and scoring actions."
+              href="/audit"
+              badge="Admin"
+            />
+
+            <DashboardCard
               title="Teams"
               description="Create and manage team names, short names and logos."
               href="/teams"

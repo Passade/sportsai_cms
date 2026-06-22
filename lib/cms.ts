@@ -370,7 +370,16 @@ export async function updateCmsTeam(id: string, input: CreateTeamInput) {
 }
 
 export async function deleteCmsTeam(id: string) {
-  return databases.deleteDocument(config.databaseId, config.teamsCollectionId, id);
+  await databases.deleteDocument(config.databaseId, config.teamsCollectionId, id);
+
+  await createCmsAuditLog({
+    action: "delete",
+    entityType: "team",
+    entityId: id,
+    message: `Deleted team ${id}`,
+  });
+
+  return true;
 }
 
 export async function getCmsPlayers() {
@@ -660,6 +669,18 @@ export async function scoreCmsPredictionsForFixture(fixtureId: string) {
       status: "completed",
     }
   );
+
+  await createCmsAuditLog({
+    action: "score",
+    entityType: "fixture",
+    entityId: fixtureId,
+    entityTitle: `${normalizedFixture.homeTeam} vs ${normalizedFixture.awayTeam}`,
+    message: `Scored predictions for ${normalizedFixture.homeTeam} vs ${normalizedFixture.awayTeam}`,
+    metadata: {
+      totalScored,
+      actualWinner: getActualWinner(normalizedFixture),
+    },
+  });
 
   return {
     totalScored,
@@ -1057,6 +1078,14 @@ export async function createCmsCommunityPost(
     }
   }
 
+  await createCmsAuditLog({
+    action: "create",
+    entityType: "community_post",
+    entityId: post.$id,
+    entityTitle: input.title.trim() || input.question.trim(),
+    message: `Created community post ${input.title.trim() || input.question.trim() || post.$id}`,
+  });
+
   return post;
 }
 
@@ -1064,12 +1093,22 @@ export async function updateCmsCommunityPost(
   id: string,
   input: CreateCommunityPostInput
 ) {
-  return databases.updateDocument(
+  const post = await databases.updateDocument(
     config.databaseId,
     config.communityPostsCollectionId,
     id,
     buildCommunityPostUpdateData(input)
   );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "community_post",
+    entityId: id,
+    entityTitle: input.title.trim() || input.question.trim(),
+    message: `Updated community post ${input.title.trim() || input.question.trim() || id}`,
+  });
+
+  return post;
 }
 
 async function safeDeleteCommunityDocument(
@@ -1179,11 +1218,20 @@ export async function deleteCmsCommunityPost(id: string) {
     );
   }
 
-  return databases.deleteDocument(
+  await databases.deleteDocument(
     config.databaseId,
     config.communityPostsCollectionId,
     id
   );
+
+  await createCmsAuditLog({
+    action: "delete",
+    entityType: "community_post",
+    entityId: id,
+    message: `Deleted community post ${id}`,
+  });
+
+  return true;
 }
 
 export async function createCmsCommunityOption(
@@ -1334,4 +1382,107 @@ export async function getCmsDashboardAnalytics() {
     predictionsTotal,
     mediaTotal,
   } as CmsDashboardAnalytics;
+}
+
+
+/* CMS AUDIT LOGS */
+
+export type CmsAuditAction =
+  | "create"
+  | "update"
+  | "delete"
+  | "upload"
+  | "score"
+  | "login"
+  | "logout"
+  | "system";
+
+export type CmsAuditLog = {
+  $id: string;
+  action: CmsAuditAction;
+  entityType: string;
+  entityId?: string;
+  entityTitle?: string;
+  message: string;
+  actor: string;
+  createdAt: string;
+  metadata?: string;
+};
+
+export type CreateCmsAuditLogInput = {
+  action: CmsAuditAction;
+  entityType: string;
+  entityId?: string;
+  entityTitle?: string;
+  message: string;
+  metadata?: Record<string, any> | string;
+};
+
+function normalizeAuditMetadata(metadata?: Record<string, any> | string) {
+  if (!metadata) return "";
+
+  if (typeof metadata === "string") {
+    return metadata;
+  }
+
+  try {
+    return JSON.stringify(metadata);
+  } catch {
+    return "";
+  }
+}
+
+export async function createCmsAuditLog(input: CreateCmsAuditLogInput) {
+  try {
+    return await databases.createDocument(
+      config.databaseId,
+      config.cmsAuditLogsCollectionId,
+      ID.unique(),
+      {
+        action: input.action,
+        entityType: input.entityType,
+        entityId: input.entityId || "",
+        entityTitle: input.entityTitle || "",
+        message: input.message,
+        actor: "cms",
+        createdAt: new Date().toISOString(),
+        metadata: normalizeAuditMetadata(input.metadata),
+      }
+    );
+  } catch (error) {
+    /*
+     * Audit logging should never block the CMS action itself.
+     * If permissions/env are wrong, log to console and let the main action continue.
+     */
+    console.warn("Audit log failed:", error);
+    return null;
+  }
+}
+
+export async function getCmsAuditLogs() {
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.cmsAuditLogsCollectionId,
+    [Query.orderDesc("createdAt"), Query.limit(500)]
+  );
+
+  return result.documents.map((log: any) => ({
+    $id: log.$id,
+    action: log.action || "system",
+    entityType: log.entityType || "",
+    entityId: log.entityId || "",
+    entityTitle: log.entityTitle || "",
+    message: log.message || "",
+    actor: log.actor || "cms",
+    createdAt: log.createdAt || log.$createdAt || "",
+    metadata: log.metadata || "",
+  })) as CmsAuditLog[];
+}
+
+export async function deleteCmsAuditLog(id: string) {
+  return databases.deleteDocument(
+    config.databaseId,
+    config.cmsAuditLogsCollectionId,
+    id
+  );
 }

@@ -1587,3 +1587,133 @@ export async function deleteCmsAuditLog(id: string) {
     id
   );
 }
+
+
+/* FIXTURE CHAT ADMIN */
+
+export type CmsFixtureChat = {
+  $id: string;
+  $createdAt?: string;
+  $updatedAt?: string;
+  fixtureId?: string;
+  userId?: string;
+  userName?: string;
+  message?: string;
+  replyToMessageId?: string;
+  replyToUserName?: string;
+  replyToMessage?: string;
+  reactions?: string;
+};
+
+export type UpdateCmsFixtureChatInput = {
+  userName: string;
+  message: string;
+  replyToUserName: string;
+  replyToMessage: string;
+  reactions: string;
+};
+
+function normalizeCmsFixtureChat(chat: any) {
+  return {
+    $id: chat.$id,
+    $createdAt: chat.$createdAt,
+    $updatedAt: chat.$updatedAt,
+    fixtureId: chat.fixtureId || "",
+    userId: chat.userId || "",
+    userName: chat.userName || "",
+    message: chat.message || "",
+    replyToMessageId: chat.replyToMessageId || "",
+    replyToUserName: chat.replyToUserName || "",
+    replyToMessage: chat.replyToMessage || "",
+    reactions: chat.reactions || "{}",
+  } as CmsFixtureChat;
+}
+
+export async function getCmsFixtureChats() {
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.fixtureChatsCollectionId,
+    [Query.orderDesc("$createdAt"), Query.limit(500)]
+  );
+
+  return result.documents.map(normalizeCmsFixtureChat);
+}
+
+export async function getCmsFixtureChatsByFixtureId(fixtureId: string) {
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.fixtureChatsCollectionId,
+    [
+      Query.equal("fixtureId", fixtureId),
+      Query.orderDesc("$createdAt"),
+      Query.limit(500),
+    ]
+  );
+
+  return result.documents.map(normalizeCmsFixtureChat);
+}
+
+export async function updateCmsFixtureChat(
+  id: string,
+  input: UpdateCmsFixtureChatInput
+) {
+  const updated = await databases.updateDocument(
+    config.databaseId,
+    config.fixtureChatsCollectionId,
+    id,
+    {
+      userName: input.userName.trim(),
+      message: input.message.trim(),
+      replyToUserName: input.replyToUserName.trim(),
+      replyToMessage: input.replyToMessage.trim(),
+      reactions: input.reactions.trim() || "{}",
+    }
+  );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "fixture_chat",
+    entityId: id,
+    entityTitle: input.userName.trim(),
+    message: `Updated fixture chat message from ${input.userName.trim() || id}`,
+  });
+
+  return normalizeCmsFixtureChat(updated);
+}
+
+export async function clearCmsFixtureChatReactions(id: string) {
+  const updated = await databases.updateDocument(
+    config.databaseId,
+    config.fixtureChatsCollectionId,
+    id,
+    {
+      reactions: "{}",
+    }
+  );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "fixture_chat",
+    entityId: id,
+    message: `Cleared reactions for fixture chat ${id}`,
+  });
+
+  return normalizeCmsFixtureChat(updated);
+}
+
+export async function deleteCmsFixtureChat(id: string) {
+  await databases.deleteDocument(
+    config.databaseId,
+    config.fixtureChatsCollectionId,
+    id
+  );
+
+  await createCmsAuditLog({
+    action: "delete",
+    entityType: "fixture_chat",
+    entityId: id,
+    message: `Deleted fixture chat ${id}`,
+  });
+
+  return true;
+}

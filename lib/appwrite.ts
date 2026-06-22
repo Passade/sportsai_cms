@@ -8,10 +8,10 @@ export const config = {
   streamsCollectionId: process.env.NEXT_PUBLIC_APPWRITE_STREAMS_COLLECTION_ID!,
   fixturesCollectionId: process.env.NEXT_PUBLIC_APPWRITE_FIXTURES_COLLECTION_ID!,
   predictionsCollectionId: process.env.NEXT_PUBLIC_APPWRITE_PREDICTIONS_COLLECTION_ID!,
+  fixtureChatsCollectionId:
+    process.env.NEXT_PUBLIC_APPWRITE_FIXTURE_CHATS_COLLECTION_ID!,
   teamsCollectionId: process.env.NEXT_PUBLIC_APPWRITE_TEAMS_COLLECTION_ID!,
   playersCollectionId: process.env.NEXT_PUBLIC_APPWRITE_PLAYERS_COLLECTION_ID!,
-  cmsAuditLogsCollectionId:
-  process.env.NEXT_PUBLIC_APPWRITE_CMS_AUDIT_LOGS_COLLECTION_ID!,
 
   communityPostsCollectionId:
     process.env.NEXT_PUBLIC_APPWRITE_COMMUNITY_POSTS_COLLECTION_ID!,
@@ -21,6 +21,9 @@ export const config = {
     process.env.NEXT_PUBLIC_APPWRITE_COMMUNITY_POST_VOTES_COLLECTION_ID!,
   communityPostReactionsCollectionId:
     process.env.NEXT_PUBLIC_APPWRITE_COMMUNITY_POST_REACTIONS_COLLECTION_ID!,
+
+  cmsAuditLogsCollectionId:
+    process.env.NEXT_PUBLIC_APPWRITE_CMS_AUDIT_LOGS_COLLECTION_ID!,
 
   mediaBucketId: process.env.NEXT_PUBLIC_APPWRITE_MEDIA_BUCKET_ID!,
 };

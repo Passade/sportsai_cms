@@ -242,6 +242,13 @@ export default function DashboardPage() {
             />
 
             <DashboardCard
+              title="Fixture Chats"
+              description="Administer fixture chat messages, reactions and replies."
+              href="/chats"
+              badge="Moderation"
+            />
+
+            <DashboardCard
               title="Media Library"
               description="Upload and manage event thumbnails, team logos, player photos and community images."
               href="/media"

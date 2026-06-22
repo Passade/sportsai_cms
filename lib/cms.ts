@@ -892,14 +892,13 @@ function communityDateTimeForInput(value?: string) {
 }
 
 function buildCommunityPostCreateData(input: CreateCommunityPostInput) {
-  return {
+  const data: Record<string, any> = {
     kind: input.kind,
     source: input.source.trim(),
     handle: input.handle.trim(),
     title: input.title.trim(),
     question: input.question.trim(),
     tag: input.tag.trim(),
-    postImageUrl: input.postImageUrl.trim(),
     votesCount: 0,
     selectedOptionId: "",
     createdBy: "cms",
@@ -908,45 +907,74 @@ function buildCommunityPostCreateData(input: CreateCommunityPostInput) {
     isActive: input.isActive,
     reactionsCount: 0,
   };
+
+  const postImageUrl = input.postImageUrl.trim();
+
+  if (postImageUrl) {
+    data.postImageUrl = postImageUrl;
+  }
+
+  return data;
 }
 
 function buildCommunityPostUpdateData(input: CreateCommunityPostInput) {
-  return {
+  const data: Record<string, any> = {
     kind: input.kind,
     source: input.source.trim(),
     handle: input.handle.trim(),
     title: input.title.trim(),
     question: input.question.trim(),
     tag: input.tag.trim(),
-    postImageUrl: input.postImageUrl.trim(),
     sortOrder: communityNumber(input.sortOrder, 999),
     publishedAt: communityDateTime(input.publishedAt),
     isActive: input.isActive,
   };
+
+  const postImageUrl = input.postImageUrl.trim();
+
+  if (postImageUrl) {
+    data.postImageUrl = postImageUrl;
+  }
+
+  return data;
 }
 
 function buildCommunityOptionCreateData(
   postId: string,
   input: CreateCommunityPostOptionInput
 ) {
-  return {
+  const data: Record<string, any> = {
     postId,
     label: input.label.trim(),
-    imageUrl: input.imageUrl.trim(),
     votesCount: 0,
     percentage: 0,
     sortOrder: communityNumber(input.sortOrder, 999),
     isActive: input.isActive,
   };
+
+  const imageUrl = input.imageUrl.trim();
+
+  if (imageUrl) {
+    data.imageUrl = imageUrl;
+  }
+
+  return data;
 }
 
 function buildCommunityOptionUpdateData(input: CreateCommunityPostOptionInput) {
-  return {
+  const data: Record<string, any> = {
     label: input.label.trim(),
-    imageUrl: input.imageUrl.trim(),
     sortOrder: communityNumber(input.sortOrder, 999),
     isActive: input.isActive,
   };
+
+  const imageUrl = input.imageUrl.trim();
+
+  if (imageUrl) {
+    data.imageUrl = imageUrl;
+  }
+
+  return data;
 }
 
 export function normalizeCommunityPublishedAtForInput(value?: string) {

@@ -1,7 +1,16 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
-import { CmsTeam, createCmsFixture, FixtureStatus, getCmsTeams } from "@/lib/cms";
+import {
+  getCmsErrorMessage,
+  useCmsToast,
+} from "@/components/cms-toast-provider";
+import {
+  CmsTeam,
+  createCmsFixture,
+  FixtureStatus,
+  getCmsTeams,
+} from "@/lib/cms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -92,6 +101,8 @@ function TeamNameField({
 
 export default function CreateFixturePage() {
   const router = useRouter();
+  const { showSuccess, showError, showWarning } = useCmsToast();
+
   const [form, setForm] = useState(initialForm);
   const [saving, setSaving] = useState(false);
   const [teams, setTeams] = useState<CmsTeam[]>([]);
@@ -103,22 +114,16 @@ export default function CreateFixturePage() {
         setTeamsLoading(true);
         const data = await getCmsTeams();
         setTeams(data);
-      } catch (error: any) {
+      } catch (error) {
         console.error("Teams load error:", error);
-
-        alert(
-          error?.message ||
-            error?.response?.message ||
-            JSON.stringify(error) ||
-            "Could not load teams from Appwrite."
-        );
+        showError("Could not load teams", getCmsErrorMessage(error));
       } finally {
         setTeamsLoading(false);
       }
     }
 
     loadTeams();
-  }, []);
+  }, [showError]);
 
   function updateField(key: keyof typeof initialForm, value: string | boolean) {
     setForm((current) => ({
@@ -127,30 +132,46 @@ export default function CreateFixturePage() {
     }));
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function resetFixtureForm() {
+    setForm(initialForm);
+  }
 
+  async function saveFixture(action: "create" | "saveAndNext") {
     if (!form.homeTeam.trim() || !form.awayTeam.trim()) {
-      alert("Home Team and Away Team are required.");
+      showWarning("Teams required", "Home Team and Away Team are required.");
+      return;
+    }
+
+    if (!form.matchDate) {
+      showWarning("Match date required", "Please add the fixture date and time.");
       return;
     }
 
     try {
       setSaving(true);
-      await createCmsFixture(form);
-      router.push("/fixtures");
-    } catch (error: any) {
-      console.error("Create fixture error:", error);
 
-      alert(
-        error?.message ||
-          error?.response?.message ||
-          JSON.stringify(error) ||
-          "Could not create fixture."
-      );
+      await createCmsFixture(form);
+
+      if (action === "saveAndNext") {
+        resetFixtureForm();
+        showSuccess("Fixture saved", "Ready for the next fixture.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+
+      showSuccess("Fixture created", "Redirecting to fixtures list.");
+      router.push("/fixtures");
+    } catch (error) {
+      console.error("Create fixture error:", error);
+      showError("Could not create fixture", getCmsErrorMessage(error));
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await saveFixture("create");
   }
 
   return (
@@ -167,6 +188,10 @@ export default function CreateFixturePage() {
               </Link>
 
               <h1 className="mt-2 text-4xl font-bold">Create Fixture</h1>
+
+              <p className="mt-2 text-slate-500">
+                Use Save and Next to keep adding fixtures without leaving this page.
+              </p>
             </div>
           </div>
         </section>
@@ -291,17 +316,28 @@ export default function CreateFixturePage() {
                 className="h-5 w-5"
               />
 
-              <span className="font-bold text-[#29496d]">This fixture is streamed</span>
+              <span className="font-bold text-[#29496d]">
+                This fixture is streamed
+              </span>
             </label>
           </div>
 
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
             <Link
               href="/fixtures"
               className="rounded border border-slate-200 bg-white px-7 py-4 text-lg font-bold text-[#29496d] transition hover:bg-slate-50"
             >
               Cancel
             </Link>
+
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => saveFixture("saveAndNext")}
+              className="rounded border border-cyan-200 bg-white px-7 py-4 text-lg font-bold text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Saving..." : "Save and Next"}
+            </button>
 
             <button
               type="submit"

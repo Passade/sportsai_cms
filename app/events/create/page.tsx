@@ -10,6 +10,7 @@ import {
   getCmsTeams,
 } from "@/lib/cms";
 import Link from "next/link";
+import { getCmsErrorMessage, useCmsToast } from "@/components/cms-toast-provider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -140,6 +141,7 @@ function Fieldset({
 
 export default function CreateEventPage() {
   const router = useRouter();
+  const { showSuccess, showError, showWarning } = useCmsToast();
 
   const [teams, setTeams] = useState<CmsTeam[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
@@ -176,7 +178,7 @@ export default function CreateEventPage() {
         setTeams(result);
       } catch (error) {
         console.error(error);
-        alert("Could not load teams from Appwrite.");
+        showError("Could not load teams", getCmsErrorMessage(error));
       } finally {
         setTeamsLoading(false);
       }
@@ -185,16 +187,25 @@ export default function CreateEventPage() {
     loadTeams();
   }, []);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function resetSaveAndNextFields() {
+    setTitle("");
+    setHomeTeam("");
+    setAwayTeam("");
+    setMatchDate("");
+    setThumbnail("");
+    setStreamUrl("");
+    setVodUrl("");
+    setFixturesId("");
+  }
 
+  async function saveEvent(action: "save" | "saveAndNext") {
     if (!homeTeam.trim() || !awayTeam.trim()) {
-      alert("Please add both home team and guest team.");
+      showWarning("Teams required", "Please add both home team and guest team.");
       return;
     }
 
     if (!matchDate) {
-      alert("Please add a start date and time.");
+      showWarning("Start date required", "Please add a start date and time.");
       return;
     }
 
@@ -219,13 +230,26 @@ export default function CreateEventPage() {
         fixturesId: fixturesId.trim(),
       });
 
+      if (action === "saveAndNext") {
+        resetSaveAndNextFields();
+        showSuccess("Event saved", "Ready for the next event.");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+
+      showSuccess("Event created", "Redirecting to events list.");
       router.push("/events");
     } catch (error) {
       console.error(error);
-      alert("Could not create event. Check your Appwrite fields and permissions.");
+      showError("Could not create event", getCmsErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await saveEvent("save");
   }
 
   return (
@@ -431,13 +455,22 @@ export default function CreateEventPage() {
             </div>
           </Fieldset>
 
-          <div className="flex justify-end gap-4 pb-20">
+          <div className="flex flex-wrap justify-end gap-4 pb-20">
             <button
               type="button"
               onClick={() => router.back()}
               className="border border-slate-300 bg-white px-12 py-4 text-xl font-bold text-[#29496d]"
             >
               Cancel
+            </button>
+
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => saveEvent("saveAndNext")}
+              className="border border-cyan-500 bg-white px-12 py-4 text-xl font-bold text-cyan-600 hover:bg-cyan-50 disabled:opacity-50"
+            >
+              {submitting ? "Saving..." : "Save and Next"}
             </button>
 
             <button

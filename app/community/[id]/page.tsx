@@ -3,13 +3,19 @@
 import CmsAuthGuard from "@/components/cms-auth-guard";
 import CmsImageUpload from "@/components/cms-image-upload";
 import {
+  CmsCommunityFixturePickerItem,
   CmsCommunityPostOption,
+  CmsCommunityStreamPickerItem,
+  CmsTeam,
   CommunityPostKind,
   createCmsCommunityOption,
   deleteCmsCommunityOption,
   deleteCmsCommunityPost,
+  getCmsCommunityFixturePickerItems,
   getCmsCommunityOptionsForPost,
   getCmsCommunityPostById,
+  getCmsCommunityStreamPickerItems,
+  getCmsTeams,
   normalizeCommunityPublishedAtForInput,
   updateCmsCommunityOption,
   updateCmsCommunityPost,
@@ -72,18 +78,37 @@ export default function EditCommunityPostPage() {
     sortOrder: "999",
     isActive: true,
   });
+  const [fixtures, setFixtures] = useState<CmsCommunityFixturePickerItem[]>([]);
+  const [streams, setStreams] = useState<CmsCommunityStreamPickerItem[]>([]);
+  const [teams, setTeams] = useState<CmsTeam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPickers, setLoadingPickers] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const needsOptions = form.kind === "poll" || form.kind === "debate";
 
+  function formatDate(value?: string) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString();
+  }
+
   async function loadData() {
     try {
       setLoading(true);
-      const [post, optionList] = await Promise.all([
+      const [post, optionList, fixtureItems, streamItems, teamItems] = await Promise.all([
         getCmsCommunityPostById(params.id),
         getCmsCommunityOptionsForPost(params.id),
+        getCmsCommunityFixturePickerItems(),
+        getCmsCommunityStreamPickerItems(),
+        getCmsTeams(),
       ]);
+
+      setFixtures(fixtureItems);
+      setStreams(streamItems);
+      setTeams(teamItems);
+      setLoadingPickers(false);
 
       setForm({
         kind: (post.kind || "image") as CommunityPostKind,
@@ -242,9 +267,80 @@ export default function EditCommunityPostPage() {
                   onUploaded={(url) => updateField("postImageUrl", url)}
                 />
               </div>
-              <Field label="Fixture ID" value={form.fixtureId} onChange={(value) => updateField("fixtureId", value)} />
-              <Field label="Team ID" value={form.teamId} onChange={(value) => updateField("teamId", value)} />
-              <Field label="Stream ID" value={form.streamId} onChange={(value) => updateField("streamId", value)} />
+              <label className="block">
+                <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                  Linked Fixture
+                </span>
+                <select
+                  value={form.fixtureId}
+                  onChange={(event) => updateField("fixtureId", event.target.value)}
+                  disabled={loadingPickers}
+                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400 disabled:bg-slate-100"
+                >
+                  <option value="">No linked fixture</option>
+                  {fixtures.map((fixture) => (
+                    <option key={fixture.$id} value={fixture.$id}>
+                      {fixture.homeTeam || "Home"} vs {fixture.awayTeam || "Away"} · {fixture.sport || "Sport"} · {formatDate(fixture.matchDate)}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={form.fixtureId}
+                  onChange={(event) => updateField("fixtureId", event.target.value)}
+                  placeholder="Or paste fixture ID manually"
+                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-sm text-[#29496d] outline-none focus:border-cyan-400"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                  Linked Team
+                </span>
+                <select
+                  value={form.teamId}
+                  onChange={(event) => updateField("teamId", event.target.value)}
+                  disabled={loadingPickers}
+                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400 disabled:bg-slate-100"
+                >
+                  <option value="">No linked team</option>
+                  {teams.map((team) => (
+                    <option key={team.$id} value={team.$id}>
+                      {team.name} {team.shortName ? `(${team.shortName})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={form.teamId}
+                  onChange={(event) => updateField("teamId", event.target.value)}
+                  placeholder="Or paste team ID manually"
+                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-sm text-[#29496d] outline-none focus:border-cyan-400"
+                />
+              </label>
+
+              <label className="block md:col-span-2">
+                <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                  Linked Stream / Event
+                </span>
+                <select
+                  value={form.streamId}
+                  onChange={(event) => updateField("streamId", event.target.value)}
+                  disabled={loadingPickers}
+                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400 disabled:bg-slate-100"
+                >
+                  <option value="">No linked stream/event</option>
+                  {streams.map((stream) => (
+                    <option key={stream.$id} value={stream.$id}>
+                      {stream.title || `${stream.homeTeam || "Home"} vs ${stream.awayTeam || "Away"}`} · {stream.sport || "Sport"} · {formatDate(stream.matchDate)}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={form.streamId}
+                  onChange={(event) => updateField("streamId", event.target.value)}
+                  placeholder="Or paste stream ID manually"
+                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-sm text-[#29496d] outline-none focus:border-cyan-400"
+                />
+              </label>
               <Field label="Sort Order" value={form.sortOrder} onChange={(value) => updateField("sortOrder", value)} type="number" />
               <Field label="Published At" value={form.publishedAt} onChange={(value) => updateField("publishedAt", value)} type="datetime-local" />
             </div>

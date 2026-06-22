@@ -1,4 +1,5 @@
 import { config, ID, storage } from "./appwrite";
+import { createCmsAuditLog } from "./cms";
 
 export type CmsMediaFile = {
   $id: string;
@@ -31,9 +32,24 @@ export async function uploadCmsMediaFile(file: File) {
     file
   );
 
+  const url = getCmsMediaFileUrl(uploadedFile.$id);
+
+  await createCmsAuditLog({
+    action: "upload",
+    entityType: "media",
+    entityId: uploadedFile.$id,
+    entityTitle: file.name,
+    message: `Uploaded media ${file.name}`,
+    metadata: {
+      mimeType: file.type,
+      size: file.size,
+      url,
+    },
+  });
+
   return {
     file: uploadedFile,
-    url: getCmsMediaFileUrl(uploadedFile.$id),
+    url,
   };
 }
 
@@ -55,5 +71,14 @@ export async function listCmsMediaFiles() {
 }
 
 export async function deleteCmsMediaFile(fileId: string) {
-  return storage.deleteFile(config.mediaBucketId, fileId);
+  await storage.deleteFile(config.mediaBucketId, fileId);
+
+  await createCmsAuditLog({
+    action: "delete",
+    entityType: "media",
+    entityId: fileId,
+    message: `Deleted media ${fileId}`,
+  });
+
+  return true;
 }

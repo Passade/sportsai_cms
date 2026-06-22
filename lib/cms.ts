@@ -346,12 +346,22 @@ export async function createCmsTeam(input: CreateTeamInput) {
     logoUrl: input.logoUrl.trim(),
   };
 
-  return databases.createDocument(
+  const team = await databases.createDocument(
     config.databaseId,
     config.teamsCollectionId,
     ID.unique(),
     data
   );
+
+  await createCmsAuditLog({
+    action: "create",
+    entityType: "team",
+    entityId: team.$id,
+    entityTitle: data.name,
+    message: `Created team ${data.name}`,
+  });
+
+  return team;
 }
 
 export async function updateCmsTeam(id: string, input: CreateTeamInput) {
@@ -361,12 +371,22 @@ export async function updateCmsTeam(id: string, input: CreateTeamInput) {
     logoUrl: input.logoUrl.trim(),
   };
 
-  return databases.updateDocument(
+  const team = await databases.updateDocument(
     config.databaseId,
     config.teamsCollectionId,
     id,
     data
   );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "team",
+    entityId: id,
+    entityTitle: data.name,
+    message: `Updated team ${data.name}`,
+  });
+
+  return team;
 }
 
 export async function deleteCmsTeam(id: string) {
@@ -417,29 +437,58 @@ export async function getCmsPlayerById(id: string) {
 }
 
 export async function createCmsPlayer(input: CreatePlayerInput) {
-  return databases.createDocument(
+  const player = await databases.createDocument(
     config.databaseId,
     config.playersCollectionId,
     ID.unique(),
     buildPlayerData(input)
   );
+
+  await createCmsAuditLog({
+    action: "create",
+    entityType: "player",
+    entityId: player.$id,
+    entityTitle: input.name.trim(),
+    message: `Created player ${input.name.trim()}`,
+  });
+
+  return player;
 }
 
 export async function updateCmsPlayer(id: string, input: CreatePlayerInput) {
-  return databases.updateDocument(
+  const player = await databases.updateDocument(
     config.databaseId,
     config.playersCollectionId,
     id,
     buildPlayerData(input)
   );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "player",
+    entityId: id,
+    entityTitle: input.name.trim(),
+    message: `Updated player ${input.name.trim()}`,
+  });
+
+  return player;
 }
 
 export async function deleteCmsPlayer(id: string) {
-  return databases.deleteDocument(
+  await databases.deleteDocument(
     config.databaseId,
     config.playersCollectionId,
     id
   );
+
+  await createCmsAuditLog({
+    action: "delete",
+    entityType: "player",
+    entityId: id,
+    message: `Deleted player ${id}`,
+  });
+
+  return true;
 }
 
 export async function getCmsFixtures() {
@@ -506,12 +555,22 @@ export async function createCmsFixture(input: CreateFixtureInput) {
     );
   }
 
-  return databases.createDocument(
+  const fixture = await databases.createDocument(
     config.databaseId,
     config.fixturesCollectionId,
     ID.unique(),
     buildFixtureData(input)
   );
+
+  await createCmsAuditLog({
+    action: "create",
+    entityType: "fixture",
+    entityId: fixture.$id,
+    entityTitle: `${input.homeTeam.trim()} vs ${input.awayTeam.trim()}`,
+    message: `Created fixture ${input.homeTeam.trim()} vs ${input.awayTeam.trim()}`,
+  });
+
+  return fixture;
 }
 
 export async function updateCmsFixture(id: string, input: CreateFixtureInput) {
@@ -523,12 +582,22 @@ export async function updateCmsFixture(id: string, input: CreateFixtureInput) {
     );
   }
 
-  return databases.updateDocument(
+  const fixture = await databases.updateDocument(
     config.databaseId,
     config.fixturesCollectionId,
     id,
     buildFixtureData(input)
   );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "fixture",
+    entityId: id,
+    entityTitle: `${input.homeTeam.trim()} vs ${input.awayTeam.trim()}`,
+    message: `Updated fixture ${input.homeTeam.trim()} vs ${input.awayTeam.trim()}`,
+  });
+
+  return fixture;
 }
 
 export async function updateCmsFixtureStatus(id: string, status: FixtureStatus) {
@@ -729,7 +798,7 @@ export async function createCmsEvent(input: CreateEventInput) {
     fixturesId: input.fixturesId,
   };
 
-  return databases.createDocument(
+  const event = await databases.createDocument(
     config.databaseId,
     config.streamsCollectionId,
     ID.unique(),
@@ -738,6 +807,16 @@ export async function createCmsEvent(input: CreateEventInput) {
       searchText: buildSearchText(data),
     }
   );
+
+  await createCmsAuditLog({
+    action: "create",
+    entityType: "event",
+    entityId: event.$id,
+    entityTitle: title,
+    message: `Created event ${title}`,
+  });
+
+  return event;
 }
 
 export async function updateCmsEvent(id: string, input: CreateEventInput) {
@@ -767,7 +846,7 @@ export async function updateCmsEvent(id: string, input: CreateEventInput) {
     fixturesId: input.fixturesId,
   };
 
-  return databases.updateDocument(
+  const event = await databases.updateDocument(
     config.databaseId,
     config.streamsCollectionId,
     id,
@@ -776,6 +855,16 @@ export async function updateCmsEvent(id: string, input: CreateEventInput) {
       searchText: buildSearchText(data),
     }
   );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "event",
+    entityId: id,
+    entityTitle: title,
+    message: `Updated event ${title}`,
+  });
+
+  return event;
 }
 
 export async function deleteCmsEvent(id: string) {
@@ -833,6 +922,16 @@ export async function deleteCmsEventAndFixture(
   }
 
   await safeDeleteEvent(eventId);
+
+  await createCmsAuditLog({
+    action: "delete",
+    entityType: "event",
+    entityId: eventId,
+    message: `Deleted event ${eventId}`,
+    metadata: {
+      deletedFixtureIds: Array.from(fixtureIdsToDelete),
+    },
+  });
 
   return {
     deletedEventId: eventId,

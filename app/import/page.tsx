@@ -2,10 +2,18 @@
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
 import CmsLogoutButton from "@/components/cms-logout-button";
-import { CmsTeam, createCmsTeam, getCmsTeams } from "@/lib/cms";
+import {
+  CmsPlayer,
+  CmsTeam,
+  createCmsPlayer,
+  createCmsTeam,
+  getCmsPlayers,
+  getCmsTeams,
+} from "@/lib/cms";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 
+type ImportMode = "teams" | "players";
 type ImportStatus = "ready" | "duplicate" | "invalid" | "imported" | "failed";
 
 type TeamImportRow = {
@@ -17,7 +25,24 @@ type TeamImportRow = {
   message: string;
 };
 
-function normalizeTeamName(value: string) {
+type PlayerImportRow = {
+  rowNumber: number;
+  name: string;
+  school: string;
+  teamName: string;
+  sport: string;
+  position: string;
+  number: string;
+  dateOfBirth: string;
+  age: string;
+  country: string;
+  imageUrl: string;
+  active: string;
+  status: ImportStatus;
+  message: string;
+};
+
+function normalizeText(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
@@ -70,27 +95,64 @@ function parseCsv(csvText: string) {
     header.trim().toLowerCase()
   );
 
-  const nameIndex = headers.indexOf("name");
-  const shortNameIndex = headers.indexOf("shortname");
-  const logoUrlIndex = headers.indexOf("logourl");
-
-  if (nameIndex === -1) {
-    throw new Error('CSV must include a "name" column.');
-  }
-
-  return lines.slice(1).map((line, index) => {
-    const values = parseCsvLine(line);
-
-    return {
+  return {
+    headers,
+    rows: lines.slice(1).map((line, index) => ({
       rowNumber: index + 2,
-      name: values[nameIndex] || "",
-      shortName: shortNameIndex >= 0 ? values[shortNameIndex] || "" : "",
-      logoUrl: logoUrlIndex >= 0 ? values[logoUrlIndex] || "" : "",
-    };
-  });
+      values: parseCsvLine(line),
+    })),
+  };
 }
 
-function validateLogoUrl(value: string) {
+function getColumn(headers: string[], values: string[], columnName: string) {
+  const index = headers.indexOf(columnName.toLowerCase());
+
+  if (index === -1) {
+    return "";
+  }
+
+  return values[index] || "";
+}
+
+function parseTeamsCsv(csvText: string) {
+  const { headers, rows } = parseCsv(csvText);
+
+  if (!headers.includes("name")) {
+    throw new Error('Teams CSV must include a "name" column.');
+  }
+
+  return rows.map((row) => ({
+    rowNumber: row.rowNumber,
+    name: getColumn(headers, row.values, "name"),
+    shortName: getColumn(headers, row.values, "shortname"),
+    logoUrl: getColumn(headers, row.values, "logourl"),
+  }));
+}
+
+function parsePlayersCsv(csvText: string) {
+  const { headers, rows } = parseCsv(csvText);
+
+  if (!headers.includes("name")) {
+    throw new Error('Players CSV must include a "name" column.');
+  }
+
+  return rows.map((row) => ({
+    rowNumber: row.rowNumber,
+    name: getColumn(headers, row.values, "name"),
+    school: getColumn(headers, row.values, "school"),
+    teamName: getColumn(headers, row.values, "teamname"),
+    sport: getColumn(headers, row.values, "sport"),
+    position: getColumn(headers, row.values, "position"),
+    number: getColumn(headers, row.values, "number"),
+    dateOfBirth: getColumn(headers, row.values, "dateofbirth"),
+    age: getColumn(headers, row.values, "age"),
+    country: getColumn(headers, row.values, "country"),
+    imageUrl: getColumn(headers, row.values, "imageurl"),
+    active: getColumn(headers, row.values, "active") || "true",
+  }));
+}
+
+function validateUrl(value: string) {
   const trimmed = value.trim();
 
   if (!trimmed) {
@@ -105,6 +167,36 @@ function validateLogoUrl(value: string) {
   }
 }
 
+function validateIntegerString(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return true;
+  }
+
+  return /^\d+$/.test(trimmed);
+}
+
+function validateDateString(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return true;
+  }
+
+  const date = new Date(trimmed);
+
+  return !Number.isNaN(date.getTime());
+}
+
+function parseActive(value: string) {
+  const normalized = value.trim().toLowerCase();
+
+  if (!normalized) return true;
+
+  return ["true", "yes", "1", "active"].includes(normalized);
+}
+
 function getStatusClass(status: ImportStatus) {
   if (status === "ready") return "bg-green-100 text-green-700";
   if (status === "duplicate") return "bg-yellow-100 text-yellow-700";
@@ -115,32 +207,75 @@ function getStatusClass(status: ImportStatus) {
   return "bg-slate-100 text-slate-600";
 }
 
-function downloadTemplate() {
-  const csv = [
-    "name,shortName,logoUrl",
-    "Prince Edward,PE,",
-    "St George's College,STG,",
-    "Churchill School,CHS,",
-  ].join("\n");
+function downloadTemplate(mode: ImportMode) {
+  const csv =
+    mode === "teams"
+      ? [
+          "name,shortName,logoUrl",
+          "Prince Edward,PE,",
+          "St George's College,STG,",
+          "Churchill School,CHS,",
+        ].join("\n")
+      : [
+          "name,school,teamName,sport,position,number,dateOfBirth,age,country,imageUrl,active",
+          "Tinashe Moyo,Prince Edward,Prince Edward,Football,Forward,10,2008-05-12,17,Zimbabwe,,true",
+          "Kuda Nyoni,St George's College,St George's College,Football,Midfielder,8,2008-09-20,17,Zimbabwe,,true",
+        ].join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
 
   anchor.href = url;
-  anchor.download = "sportsai_teams_import_template.csv";
+  anchor.download =
+    mode === "teams"
+      ? "sportsai_teams_import_template.csv"
+      : "sportsai_players_import_template.csv";
   anchor.click();
 
   URL.revokeObjectURL(url);
 }
 
+function SummaryCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "green" | "yellow" | "red" | "blue";
+}) {
+  const toneClass =
+    tone === "green"
+      ? "text-green-600"
+      : tone === "yellow"
+      ? "text-yellow-600"
+      : tone === "red"
+      ? "text-red-600"
+      : tone === "blue"
+      ? "text-blue-600"
+      : "";
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm font-bold uppercase text-slate-400">{label}</p>
+      <p className={`mt-2 text-3xl font-bold ${toneClass}`}>{value}</p>
+    </div>
+  );
+}
+
 export default function ImportPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [rows, setRows] = useState<TeamImportRow[]>([]);
+  const [mode, setMode] = useState<ImportMode>("teams");
+  const [teamRows, setTeamRows] = useState<TeamImportRow[]>([]);
+  const [playerRows, setPlayerRows] = useState<PlayerImportRow[]>([]);
   const [existingTeams, setExistingTeams] = useState<CmsTeam[]>([]);
+  const [existingPlayers, setExistingPlayers] = useState<CmsPlayer[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  const rows = mode === "teams" ? teamRows : playerRows;
 
   const summary = useMemo(() => {
     return {
@@ -159,7 +294,13 @@ export default function ImportPage() {
     return teams;
   }
 
-  function validateRows(
+  async function loadExistingPlayers() {
+    const players = await getCmsPlayers();
+    setExistingPlayers(players);
+    return players;
+  }
+
+  function validateTeamRows(
     parsedRows: Array<{
       rowNumber: number;
       name: string;
@@ -169,12 +310,12 @@ export default function ImportPage() {
     teams: CmsTeam[]
   ) {
     const existingNames = new Set(
-      teams.map((team) => normalizeTeamName(team.name || ""))
+      teams.map((team) => normalizeText(team.name || ""))
     );
     const seenNames = new Set<string>();
 
     return parsedRows.map((row) => {
-      const normalizedName = normalizeTeamName(row.name);
+      const normalizedName = normalizeText(row.name);
 
       if (!row.name.trim()) {
         return {
@@ -184,7 +325,7 @@ export default function ImportPage() {
         };
       }
 
-      if (!validateLogoUrl(row.logoUrl)) {
+      if (!validateUrl(row.logoUrl)) {
         return {
           ...row,
           status: "invalid" as ImportStatus,
@@ -218,6 +359,107 @@ export default function ImportPage() {
     });
   }
 
+  function validatePlayerRows(
+    parsedRows: Array<{
+      rowNumber: number;
+      name: string;
+      school: string;
+      teamName: string;
+      sport: string;
+      position: string;
+      number: string;
+      dateOfBirth: string;
+      age: string;
+      country: string;
+      imageUrl: string;
+      active: string;
+    }>,
+    players: CmsPlayer[]
+  ) {
+    const existingKeys = new Set(
+      players.map((player) =>
+        [
+          normalizeText(player.name || ""),
+          normalizeText(player.teamName || ""),
+          normalizeText(player.school || ""),
+        ].join("|")
+      )
+    );
+    const seenKeys = new Set<string>();
+
+    return parsedRows.map((row) => {
+      const key = [
+        normalizeText(row.name),
+        normalizeText(row.teamName),
+        normalizeText(row.school),
+      ].join("|");
+
+      if (!row.name.trim()) {
+        return {
+          ...row,
+          status: "invalid" as ImportStatus,
+          message: "Missing player name.",
+        };
+      }
+
+      if (!validateIntegerString(row.number)) {
+        return {
+          ...row,
+          status: "invalid" as ImportStatus,
+          message: "Number must be a whole number.",
+        };
+      }
+
+      if (!validateIntegerString(row.age)) {
+        return {
+          ...row,
+          status: "invalid" as ImportStatus,
+          message: "Age must be a whole number.",
+        };
+      }
+
+      if (!validateDateString(row.dateOfBirth)) {
+        return {
+          ...row,
+          status: "invalid" as ImportStatus,
+          message: "Date of birth must be a valid date.",
+        };
+      }
+
+      if (!validateUrl(row.imageUrl)) {
+        return {
+          ...row,
+          status: "invalid" as ImportStatus,
+          message: "Image URL must be a valid http or https URL.",
+        };
+      }
+
+      if (existingKeys.has(key)) {
+        return {
+          ...row,
+          status: "duplicate" as ImportStatus,
+          message: "Player already exists in Appwrite.",
+        };
+      }
+
+      if (seenKeys.has(key)) {
+        return {
+          ...row,
+          status: "duplicate" as ImportStatus,
+          message: "Duplicate player in this CSV.",
+        };
+      }
+
+      seenKeys.add(key);
+
+      return {
+        ...row,
+        status: "ready" as ImportStatus,
+        message: "Ready to import.",
+      };
+    });
+  }
+
   async function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
@@ -229,10 +471,18 @@ export default function ImportPage() {
       setLoading(true);
 
       const text = await file.text();
-      const parsedRows = parseCsv(text);
-      const teams = await loadExistingTeams();
 
-      setRows(validateRows(parsedRows, teams));
+      if (mode === "teams") {
+        const parsedRows = parseTeamsCsv(text);
+        const teams = await loadExistingTeams();
+
+        setTeamRows(validateTeamRows(parsedRows, teams));
+      } else {
+        const parsedRows = parsePlayersCsv(text);
+        const players = await loadExistingPlayers();
+
+        setPlayerRows(validatePlayerRows(parsedRows, players));
+      }
     } catch (error: any) {
       console.error("CSV parse error:", error);
       alert(error?.message || "Could not read CSV file.");
@@ -248,9 +498,16 @@ export default function ImportPage() {
   async function handleRefreshValidation() {
     try {
       setLoading(true);
-      const teams = await loadExistingTeams();
 
-      setRows((currentRows) => validateRows(currentRows, teams));
+      if (mode === "teams") {
+        const teams = await loadExistingTeams();
+        setTeamRows((currentRows) => validateTeamRows(currentRows, teams));
+      } else {
+        const players = await loadExistingPlayers();
+        setPlayerRows((currentRows) =>
+          validatePlayerRows(currentRows, players)
+        );
+      }
     } catch (error: any) {
       console.error("Refresh validation error:", error);
       alert(error?.message || "Could not refresh validation.");
@@ -259,11 +516,11 @@ export default function ImportPage() {
     }
   }
 
-  async function handleImportReadyRows() {
-    const readyRows = rows.filter((row) => row.status === "ready");
+  async function handleImportTeams() {
+    const readyRows = teamRows.filter((row) => row.status === "ready");
 
     if (readyRows.length === 0) {
-      alert("No ready rows to import.");
+      alert("No ready team rows to import.");
       return;
     }
 
@@ -282,7 +539,7 @@ export default function ImportPage() {
             logoUrl: row.logoUrl,
           });
 
-          setRows((currentRows) =>
+          setTeamRows((currentRows) =>
             currentRows.map((currentRow) =>
               currentRow.rowNumber === row.rowNumber
                 ? {
@@ -296,7 +553,7 @@ export default function ImportPage() {
         } catch (error: any) {
           console.error("Team import row error:", row, error);
 
-          setRows((currentRows) =>
+          setTeamRows((currentRows) =>
             currentRows.map((currentRow) =>
               currentRow.rowNumber === row.rowNumber
                 ? {
@@ -317,6 +574,83 @@ export default function ImportPage() {
     } finally {
       setImporting(false);
     }
+  }
+
+  async function handleImportPlayers() {
+    const readyRows = playerRows.filter((row) => row.status === "ready");
+
+    if (readyRows.length === 0) {
+      alert("No ready player rows to import.");
+      return;
+    }
+
+    if (!window.confirm(`Import ${readyRows.length} players?`)) {
+      return;
+    }
+
+    try {
+      setImporting(true);
+
+      for (const row of readyRows) {
+        try {
+          await createCmsPlayer({
+            name: row.name,
+            school: row.school,
+            teamName: row.teamName,
+            sport: row.sport,
+            position: row.position,
+            number: row.number,
+            dateOfBirth: row.dateOfBirth,
+            age: row.age,
+            country: row.country,
+            imageUrl: row.imageUrl,
+            active: parseActive(row.active),
+          });
+
+          setPlayerRows((currentRows) =>
+            currentRows.map((currentRow) =>
+              currentRow.rowNumber === row.rowNumber
+                ? {
+                    ...currentRow,
+                    status: "imported",
+                    message: "Imported successfully.",
+                  }
+                : currentRow
+            )
+          );
+        } catch (error: any) {
+          console.error("Player import row error:", row, error);
+
+          setPlayerRows((currentRows) =>
+            currentRows.map((currentRow) =>
+              currentRow.rowNumber === row.rowNumber
+                ? {
+                    ...currentRow,
+                    status: "failed",
+                    message:
+                      error?.message ||
+                      error?.response?.message ||
+                      "Import failed.",
+                  }
+                : currentRow
+            )
+          );
+        }
+      }
+
+      await loadExistingPlayers();
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function handleImportReadyRows() {
+    if (mode === "teams") {
+      await handleImportTeams();
+      return;
+    }
+
+    await handleImportPlayers();
   }
 
   return (
@@ -344,28 +678,69 @@ export default function ImportPage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-8 py-10">
+          <div className="mb-6 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setMode("teams")}
+              className={`rounded px-5 py-4 font-bold transition ${
+                mode === "teams"
+                  ? "bg-cyan-500 text-white"
+                  : "border border-slate-200 bg-white text-[#29496d] hover:bg-slate-50"
+              }`}
+            >
+              Teams Import
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode("players")}
+              className={`rounded px-5 py-4 font-bold transition ${
+                mode === "players"
+                  ? "bg-cyan-500 text-white"
+                  : "border border-slate-200 bg-white text-[#29496d] hover:bg-slate-50"
+              }`}
+            >
+              Players Import
+            </button>
+          </div>
+
           <div className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <p className="text-sm font-bold uppercase tracking-[3px] text-cyan-600">
-                  Teams Import
+                  {mode === "teams" ? "Teams Import" : "Players Import"}
                 </p>
 
                 <h2 className="mt-3 text-3xl font-bold">
-                  Import teams from CSV
+                  {mode === "teams"
+                    ? "Import teams from CSV"
+                    : "Import players from CSV"}
                 </h2>
 
                 <p className="mt-3 max-w-3xl text-lg leading-8 text-slate-500">
-                  Required column: <strong>name</strong>. Optional columns:
-                  <strong> shortName</strong> and <strong>logoUrl</strong>.
-                  Duplicates are skipped by team name.
+                  {mode === "teams" ? (
+                    <>
+                      Required column: <strong>name</strong>. Optional columns:
+                      <strong> shortName</strong> and <strong>logoUrl</strong>.
+                      Duplicates are skipped by team name.
+                    </>
+                  ) : (
+                    <>
+                      Required column: <strong>name</strong>. Optional columns:
+                      <strong> school</strong>, <strong>teamName</strong>,{" "}
+                      <strong>sport</strong>, <strong>position</strong>,{" "}
+                      <strong>number</strong>, <strong>dateOfBirth</strong>,{" "}
+                      <strong>age</strong>, <strong>country</strong>,{" "}
+                      <strong>imageUrl</strong>, and <strong>active</strong>.
+                    </>
+                  )}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={downloadTemplate}
+                  onClick={() => downloadTemplate(mode)}
                   className="rounded border border-slate-200 bg-white px-5 py-4 font-bold text-[#29496d] transition hover:bg-slate-50"
                 >
                   Download Template
@@ -377,7 +752,11 @@ export default function ImportPage() {
                   disabled={loading || importing}
                   className="rounded bg-cyan-500 px-6 py-4 font-bold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {loading ? "Reading..." : "Upload Teams CSV"}
+                  {loading
+                    ? "Reading..."
+                    : mode === "teams"
+                    ? "Upload Teams CSV"
+                    : "Upload Players CSV"}
                 </button>
               </div>
             </div>
@@ -392,53 +771,16 @@ export default function ImportPage() {
           </div>
 
           <div className="mt-6 grid gap-5 md:grid-cols-3 xl:grid-cols-6">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold uppercase text-slate-400">Rows</p>
-              <p className="mt-2 text-3xl font-bold">{summary.total}</p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold uppercase text-slate-400">Ready</p>
-              <p className="mt-2 text-3xl font-bold text-green-600">
-                {summary.ready}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold uppercase text-slate-400">
-                Duplicates
-              </p>
-              <p className="mt-2 text-3xl font-bold text-yellow-600">
-                {summary.duplicate}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold uppercase text-slate-400">
-                Invalid
-              </p>
-              <p className="mt-2 text-3xl font-bold text-red-600">
-                {summary.invalid}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold uppercase text-slate-400">
-                Imported
-              </p>
-              <p className="mt-2 text-3xl font-bold text-blue-600">
-                {summary.imported}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold uppercase text-slate-400">
-                Failed
-              </p>
-              <p className="mt-2 text-3xl font-bold text-red-600">
-                {summary.failed}
-              </p>
-            </div>
+            <SummaryCard label="Rows" value={summary.total} />
+            <SummaryCard label="Ready" value={summary.ready} tone="green" />
+            <SummaryCard
+              label="Duplicates"
+              value={summary.duplicate}
+              tone="yellow"
+            />
+            <SummaryCard label="Invalid" value={summary.invalid} tone="red" />
+            <SummaryCard label="Imported" value={summary.imported} tone="blue" />
+            <SummaryCard label="Failed" value={summary.failed} tone="red" />
           </div>
 
           <div className="mt-6 flex flex-wrap justify-end gap-3">
@@ -457,16 +799,21 @@ export default function ImportPage() {
               disabled={summary.ready === 0 || importing}
               className="rounded bg-green-600 px-6 py-4 font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {importing ? "Importing..." : `Import ${summary.ready} Ready Teams`}
+              {importing
+                ? "Importing..."
+                : `Import ${summary.ready} Ready ${
+                    mode === "teams" ? "Teams" : "Players"
+                  }`}
             </button>
           </div>
 
           <div className="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
             {rows.length === 0 ? (
               <div className="p-8 text-slate-500">
-                Upload a teams CSV to preview rows.
+                Upload a {mode === "teams" ? "teams" : "players"} CSV to
+                preview rows.
               </div>
-            ) : (
+            ) : mode === "teams" ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[900px] border-collapse">
                   <thead className="bg-slate-50">
@@ -481,7 +828,7 @@ export default function ImportPage() {
                   </thead>
 
                   <tbody>
-                    {rows.map((row) => (
+                    {teamRows.map((row) => (
                       <tr key={row.rowNumber} className="border-t border-slate-100">
                         <td className="px-5 py-4 font-bold">{row.rowNumber}</td>
                         <td className="px-5 py-4">
@@ -498,6 +845,54 @@ export default function ImportPage() {
                         <td className="max-w-[260px] truncate px-5 py-4 text-sm text-slate-500">
                           {row.logoUrl}
                         </td>
+                        <td className="px-5 py-4 text-sm text-slate-500">
+                          {row.message}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1250px] border-collapse">
+                  <thead className="bg-slate-50">
+                    <tr className="text-left text-sm font-bold uppercase tracking-wide text-slate-400">
+                      <th className="px-5 py-4">Row</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4">Name</th>
+                      <th className="px-5 py-4">School</th>
+                      <th className="px-5 py-4">Team</th>
+                      <th className="px-5 py-4">Sport</th>
+                      <th className="px-5 py-4">Position</th>
+                      <th className="px-5 py-4">No.</th>
+                      <th className="px-5 py-4">Age</th>
+                      <th className="px-5 py-4">Active</th>
+                      <th className="px-5 py-4">Message</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {playerRows.map((row) => (
+                      <tr key={row.rowNumber} className="border-t border-slate-100">
+                        <td className="px-5 py-4 font-bold">{row.rowNumber}</td>
+                        <td className="px-5 py-4">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getStatusClass(
+                              row.status
+                            )}`}
+                          >
+                            {row.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 font-bold">{row.name}</td>
+                        <td className="px-5 py-4">{row.school}</td>
+                        <td className="px-5 py-4">{row.teamName}</td>
+                        <td className="px-5 py-4">{row.sport}</td>
+                        <td className="px-5 py-4">{row.position}</td>
+                        <td className="px-5 py-4">{row.number}</td>
+                        <td className="px-5 py-4">{row.age}</td>
+                        <td className="px-5 py-4">{row.active || "true"}</td>
                         <td className="px-5 py-4 text-sm text-slate-500">
                           {row.message}
                         </td>

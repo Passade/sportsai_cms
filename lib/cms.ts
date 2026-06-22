@@ -1,4 +1,4 @@
-import { config, databases, ID, Query } from "./appwrite";
+import { config, databases, ID, Query, storage } from "./appwrite";
 
 export type EventStatus =
   | "upcoming"
@@ -1216,4 +1216,122 @@ export async function deleteCmsCommunityOption(optionId: string) {
     config.communityPostOptionsCollectionId,
     optionId
   );
+}
+
+
+/* DASHBOARD ANALYTICS */
+
+export type CmsDashboardAnalytics = {
+  eventsTotal: number;
+  eventsLive: number;
+  fixturesTotal: number;
+  fixturesUpcoming: number;
+  fixturesLive: number;
+  fixturesCompleted: number;
+  teamsTotal: number;
+  playersTotal: number;
+  communityPostsTotal: number;
+  communityPostsActive: number;
+  pollsActive: number;
+  predictionsTotal: number;
+  mediaTotal: number;
+};
+
+async function countCmsDocuments(
+  collectionId: string,
+  queries: string[] = []
+) {
+  const result = await databases.listDocuments(
+    config.databaseId,
+    collectionId,
+    [...queries, Query.limit(1)]
+  );
+
+  return result.total;
+}
+
+async function safeCountCmsDocuments(
+  collectionId: string,
+  queries: string[] = []
+) {
+  try {
+    return await countCmsDocuments(collectionId, queries);
+  } catch (error) {
+    console.warn("Dashboard count failed:", collectionId, error);
+    return 0;
+  }
+}
+
+async function safeCountCmsMediaFiles() {
+  try {
+    const result = await storage.listFiles(config.mediaBucketId, [
+      Query.limit(1),
+    ]);
+
+    return result.total;
+  } catch (error) {
+    console.warn("Dashboard media count failed:", error);
+    return 0;
+  }
+}
+
+export async function getCmsDashboardAnalytics() {
+  const [
+    eventsTotal,
+    eventsLive,
+    fixturesTotal,
+    fixturesUpcoming,
+    fixturesLive,
+    fixturesCompleted,
+    teamsTotal,
+    playersTotal,
+    communityPostsTotal,
+    communityPostsActive,
+    pollsActive,
+    predictionsTotal,
+    mediaTotal,
+  ] = await Promise.all([
+    safeCountCmsDocuments(config.streamsCollectionId),
+    safeCountCmsDocuments(config.streamsCollectionId, [
+      Query.equal("status", "live"),
+    ]),
+    safeCountCmsDocuments(config.fixturesCollectionId),
+    safeCountCmsDocuments(config.fixturesCollectionId, [
+      Query.equal("status", "upcoming"),
+    ]),
+    safeCountCmsDocuments(config.fixturesCollectionId, [
+      Query.equal("status", "live"),
+    ]),
+    safeCountCmsDocuments(config.fixturesCollectionId, [
+      Query.equal("status", "completed"),
+    ]),
+    safeCountCmsDocuments(config.teamsCollectionId),
+    safeCountCmsDocuments(config.playersCollectionId),
+    safeCountCmsDocuments(config.communityPostsCollectionId),
+    safeCountCmsDocuments(config.communityPostsCollectionId, [
+      Query.equal("isActive", true),
+    ]),
+    safeCountCmsDocuments(config.communityPostsCollectionId, [
+      Query.equal("kind", "poll"),
+      Query.equal("isActive", true),
+    ]),
+    safeCountCmsDocuments(config.predictionsCollectionId),
+    safeCountCmsMediaFiles(),
+  ]);
+
+  return {
+    eventsTotal,
+    eventsLive,
+    fixturesTotal,
+    fixturesUpcoming,
+    fixturesLive,
+    fixturesCompleted,
+    teamsTotal,
+    playersTotal,
+    communityPostsTotal,
+    communityPostsActive,
+    pollsActive,
+    predictionsTotal,
+    mediaTotal,
+  } as CmsDashboardAnalytics;
 }

@@ -15,6 +15,7 @@ import {
   getCmsTeams,
 } from "@/lib/cms";
 import Link from "next/link";
+import { getCmsErrorMessage, useCmsToast } from "@/components/cms-toast-provider";
 import { useMemo, useRef, useState } from "react";
 
 type ImportMode = "teams" | "players" | "fixtures";
@@ -377,6 +378,7 @@ function SummaryCard({
 }
 
 export default function ImportPage() {
+  const { showSuccess, showError, showWarning } = useCmsToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [mode, setMode] = useState<ImportMode>("teams");
@@ -738,7 +740,7 @@ export default function ImportPage() {
       }
     } catch (error: any) {
       console.error("CSV parse error:", error);
-      alert(error?.message || "Could not read CSV file.");
+      showError("Could not read CSV file", getCmsErrorMessage(error));
     } finally {
       setLoading(false);
 
@@ -768,7 +770,7 @@ export default function ImportPage() {
       }
     } catch (error: any) {
       console.error("Refresh validation error:", error);
-      alert(error?.message || "Could not refresh validation.");
+      showError("Could not refresh validation", getCmsErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -778,7 +780,7 @@ export default function ImportPage() {
     const readyRows = teamRows.filter((row) => row.status === "ready");
 
     if (readyRows.length === 0) {
-      alert("No ready team rows to import.");
+      showWarning("No ready team rows", "Upload a CSV with valid, non-duplicate teams first.");
       return;
     }
 
@@ -815,10 +817,7 @@ export default function ImportPage() {
                 ? {
                     ...currentRow,
                     status: "failed",
-                    message:
-                      error?.message ||
-                      error?.response?.message ||
-                      "Import failed.",
+                    message: getCmsErrorMessage(error),
                   }
                 : currentRow
             )
@@ -827,6 +826,7 @@ export default function ImportPage() {
       }
 
       await loadExistingTeams();
+      showSuccess("Teams import complete", `Imported ${readyRows.length} team rows.`);
     } finally {
       setImporting(false);
     }
@@ -836,7 +836,7 @@ export default function ImportPage() {
     const readyRows = playerRows.filter((row) => row.status === "ready");
 
     if (readyRows.length === 0) {
-      alert("No ready player rows to import.");
+      showWarning("No ready player rows", "Upload a CSV with valid, non-duplicate players first.");
       return;
     }
 
@@ -881,10 +881,7 @@ export default function ImportPage() {
                 ? {
                     ...currentRow,
                     status: "failed",
-                    message:
-                      error?.message ||
-                      error?.response?.message ||
-                      "Import failed.",
+                    message: getCmsErrorMessage(error),
                   }
                 : currentRow
             )
@@ -893,6 +890,7 @@ export default function ImportPage() {
       }
 
       await loadExistingPlayers();
+      showSuccess("Players import complete", `Imported ${readyRows.length} player rows.`);
     } finally {
       setImporting(false);
     }
@@ -904,7 +902,7 @@ export default function ImportPage() {
     );
 
     if (readyRows.length === 0) {
-      alert("No ready fixture rows to import.");
+      showWarning("No ready fixture rows", "Upload a CSV with valid, non-duplicate fixtures first.");
       return;
     }
 
@@ -950,10 +948,7 @@ export default function ImportPage() {
                 ? {
                     ...currentRow,
                     statusResult: "failed",
-                    message:
-                      error?.message ||
-                      error?.response?.message ||
-                      "Import failed.",
+                    message: getCmsErrorMessage(error),
                   }
                 : currentRow
             )
@@ -962,6 +957,7 @@ export default function ImportPage() {
       }
 
       await loadExistingFixtures();
+      showSuccess("Fixtures import complete", `Imported ${readyRows.length} fixture rows.`);
     } finally {
       setImporting(false);
     }

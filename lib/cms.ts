@@ -74,7 +74,6 @@ export type CmsFixture = {
   homeScore?: number;
   awayScore?: number;
   isStreamed?: boolean;
-  streamId?: string;
   searchText?: string;
 };
 
@@ -90,13 +89,11 @@ export type CreateFixtureInput = {
   homeScore: string;
   awayScore: string;
   isStreamed: boolean;
-  streamId: string;
 };
 
 export type CmsPrediction = {
   $id: string;
   userName?: string;
-  fixtureId?: string;
   sport?: string;
   communityName?: string;
   predictedWinner?: string;
@@ -303,7 +300,6 @@ function buildFixtureData(input: CreateFixtureInput) {
     homeScore: toInteger(input.homeScore),
     awayScore: toInteger(input.awayScore),
     isStreamed: input.isStreamed,
-    streamId: input.streamId.trim(),
   };
 
   return {
@@ -838,9 +834,6 @@ export type CmsCommunityPost = {
   postImageUrl?: string;
   votesCount?: number;
   selectedOptionId?: string;
-  fixtureId?: string;
-  teamId?: string;
-  streamId?: string;
   createdBy?: string;
   sortOrder?: number;
   publishedAt?: string;
@@ -867,9 +860,6 @@ export type CreateCommunityPostInput = {
   question: string;
   tag: string;
   postImageUrl: string;
-  fixtureId: string;
-  teamId: string;
-  streamId: string;
   sortOrder: string;
   publishedAt: string;
   isActive: boolean;
@@ -911,9 +901,6 @@ function buildCommunityPostCreateData(input: CreateCommunityPostInput) {
     postImageUrl: input.postImageUrl.trim(),
     votesCount: 0,
     selectedOptionId: "",
-    fixtureId: input.fixtureId.trim(),
-    teamId: input.teamId.trim(),
-    streamId: input.streamId.trim(),
     createdBy: "cms",
     sortOrder: communityNumber(input.sortOrder, 999),
     publishedAt: communityDateTime(input.publishedAt),
@@ -931,9 +918,6 @@ function buildCommunityPostUpdateData(input: CreateCommunityPostInput) {
     question: input.question.trim(),
     tag: input.tag.trim(),
     postImageUrl: input.postImageUrl.trim(),
-    fixtureId: input.fixtureId.trim(),
-    teamId: input.teamId.trim(),
-    streamId: input.streamId.trim(),
     sortOrder: communityNumber(input.sortOrder, 999),
     publishedAt: communityDateTime(input.publishedAt),
     isActive: input.isActive,
@@ -986,9 +970,6 @@ export async function getCmsCommunityPosts() {
     postImageUrl: post.postImageUrl || "",
     votesCount: typeof post.votesCount === "number" ? post.votesCount : 0,
     selectedOptionId: post.selectedOptionId || "",
-    fixtureId: post.fixtureId || "",
-    teamId: post.teamId || "",
-    streamId: post.streamId || "",
     createdBy: post.createdBy || "",
     sortOrder: typeof post.sortOrder === "number" ? post.sortOrder : 999,
     publishedAt: post.publishedAt || "",
@@ -1110,65 +1091,4 @@ export async function deleteCmsCommunityOption(optionId: string) {
     config.communityPostOptionsCollectionId,
     optionId
   );
-}
-
-
-/* COMMUNITY LINK PICKERS */
-
-export type CmsCommunityFixturePickerItem = {
-  $id: string;
-  homeTeam?: string;
-  awayTeam?: string;
-  sport?: string;
-  competition?: string;
-  matchDate?: string;
-  status?: string;
-};
-
-export type CmsCommunityStreamPickerItem = {
-  $id: string;
-  title?: string;
-  homeTeam?: string;
-  awayTeam?: string;
-  sport?: string;
-  competition?: string;
-  matchDate?: string;
-  status?: string;
-};
-
-export async function getCmsCommunityFixturePickerItems() {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.fixturesCollectionId,
-    [Query.orderDesc("matchDate"), Query.limit(500)]
-  );
-
-  return result.documents.map((fixture: any) => ({
-    $id: fixture.$id,
-    homeTeam: fixture.homeTeam || "",
-    awayTeam: fixture.awayTeam || "",
-    sport: fixture.sport || "",
-    competition: fixture.competition || "",
-    matchDate: fixture.matchDate || "",
-    status: fixture.status || "",
-  })) as CmsCommunityFixturePickerItem[];
-}
-
-export async function getCmsCommunityStreamPickerItems() {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.streamsCollectionId,
-    [Query.orderDesc("matchDate"), Query.limit(500)]
-  );
-
-  return result.documents.map((stream: any) => ({
-    $id: stream.$id,
-    title: stream.title || "",
-    homeTeam: stream.homeTeam || "",
-    awayTeam: stream.awayTeam || "",
-    sport: stream.sport || "",
-    competition: stream.competition || "",
-    matchDate: stream.matchDate || "",
-    status: stream.status || "",
-  })) as CmsCommunityStreamPickerItem[];
 }

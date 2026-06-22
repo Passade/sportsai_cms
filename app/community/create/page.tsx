@@ -2,19 +2,10 @@
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
 import CmsImageUpload from "@/components/cms-image-upload";
-import {
-  CmsCommunityFixturePickerItem,
-  CmsCommunityStreamPickerItem,
-  CmsTeam,
-  CommunityPostKind,
-  createCmsCommunityPost,
-  getCmsCommunityFixturePickerItems,
-  getCmsCommunityStreamPickerItems,
-  getCmsTeams,
-} from "@/lib/cms";
+import { CommunityPostKind, createCmsCommunityPost } from "@/lib/cms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const initialForm = {
   kind: "poll" as CommunityPostKind,
@@ -24,9 +15,6 @@ const initialForm = {
   question: "",
   tag: "Fan Poll",
   postImageUrl: "",
-  fixtureId: "",
-  teamId: "",
-  streamId: "",
   sortOrder: "999",
   publishedAt: "",
   isActive: true,
@@ -68,45 +56,9 @@ export default function CreateCommunityPostPage() {
     { label: "", imageUrl: "", sortOrder: "1", isActive: true },
     { label: "", imageUrl: "", sortOrder: "2", isActive: true },
   ]);
-  const [fixtures, setFixtures] = useState<CmsCommunityFixturePickerItem[]>([]);
-  const [streams, setStreams] = useState<CmsCommunityStreamPickerItem[]>([]);
-  const [teams, setTeams] = useState<CmsTeam[]>([]);
-  const [loadingPickers, setLoadingPickers] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const needsOptions = form.kind === "poll" || form.kind === "debate";
-
-  useEffect(() => {
-    async function loadPickers() {
-      try {
-        setLoadingPickers(true);
-
-        const [fixtureItems, streamItems, teamItems] = await Promise.all([
-          getCmsCommunityFixturePickerItems(),
-          getCmsCommunityStreamPickerItems(),
-          getCmsTeams(),
-        ]);
-
-        setFixtures(fixtureItems);
-        setStreams(streamItems);
-        setTeams(teamItems);
-      } catch (error) {
-        console.error("Community picker load error:", error);
-        alert("Could not load fixtures, streams or teams for pickers.");
-      } finally {
-        setLoadingPickers(false);
-      }
-    }
-
-    loadPickers();
-  }, []);
-
-  function formatDate(value?: string) {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString();
-  }
 
   function updateField(key: keyof typeof initialForm, value: string | boolean) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -203,80 +155,6 @@ export default function CreateCommunityPostPage() {
                   onUploaded={(url) => updateField("postImageUrl", url)}
                 />
               </div>
-              <label className="block">
-                <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                  Linked Fixture
-                </span>
-                <select
-                  value={form.fixtureId}
-                  onChange={(event) => updateField("fixtureId", event.target.value)}
-                  disabled={loadingPickers}
-                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400 disabled:bg-slate-100"
-                >
-                  <option value="">No linked fixture</option>
-                  {fixtures.map((fixture) => (
-                    <option key={fixture.$id} value={fixture.$id}>
-                      {fixture.homeTeam || "Home"} vs {fixture.awayTeam || "Away"} · {fixture.sport || "Sport"} · {formatDate(fixture.matchDate)}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={form.fixtureId}
-                  onChange={(event) => updateField("fixtureId", event.target.value)}
-                  placeholder="Or paste fixture ID manually"
-                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-sm text-[#29496d] outline-none focus:border-cyan-400"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                  Linked Team
-                </span>
-                <select
-                  value={form.teamId}
-                  onChange={(event) => updateField("teamId", event.target.value)}
-                  disabled={loadingPickers}
-                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400 disabled:bg-slate-100"
-                >
-                  <option value="">No linked team</option>
-                  {teams.map((team) => (
-                    <option key={team.$id} value={team.$id}>
-                      {team.name} {team.shortName ? `(${team.shortName})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={form.teamId}
-                  onChange={(event) => updateField("teamId", event.target.value)}
-                  placeholder="Or paste team ID manually"
-                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-sm text-[#29496d] outline-none focus:border-cyan-400"
-                />
-              </label>
-
-              <label className="block md:col-span-2">
-                <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                  Linked Stream / Event
-                </span>
-                <select
-                  value={form.streamId}
-                  onChange={(event) => updateField("streamId", event.target.value)}
-                  disabled={loadingPickers}
-                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400 disabled:bg-slate-100"
-                >
-                  <option value="">No linked stream/event</option>
-                  {streams.map((stream) => (
-                    <option key={stream.$id} value={stream.$id}>
-                      {stream.title || `${stream.homeTeam || "Home"} vs ${stream.awayTeam || "Away"}`} · {stream.sport || "Sport"} · {formatDate(stream.matchDate)}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={form.streamId}
-                  onChange={(event) => updateField("streamId", event.target.value)}
-                  placeholder="Or paste stream ID manually"
-                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-sm text-[#29496d] outline-none focus:border-cyan-400"
-                />
-              </label>
               <Field label="Sort Order" value={form.sortOrder} onChange={(value) => updateField("sortOrder", value)} type="number" />
               <Field label="Published At" value={form.publishedAt} onChange={(value) => updateField("publishedAt", value)} type="datetime-local" />
             </div>

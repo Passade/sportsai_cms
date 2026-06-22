@@ -444,14 +444,6 @@ export default function CreateEventPage() {
                 Featured event
               </label>
 
-              <div className="col-span-12 rounded border border-slate-200 bg-white p-4 text-slate-500">
-                <p className="font-bold text-[#29496d]">Appwrite document ID</p>
-                <p className="mt-1 text-sm">
-                  You can leave the linked fixture ID empty. Appwrite will
-                  automatically create the event document&apos;s own{" "}
-                  <span className="font-bold">$id</span> when this event is saved.
-                </p>
-              </div>
             </div>
           </Fieldset>
 

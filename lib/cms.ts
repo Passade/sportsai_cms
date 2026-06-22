@@ -1603,6 +1603,7 @@ export type CmsFixtureChat = {
   replyToUserName?: string;
   replyToMessage?: string;
   reactions?: string;
+  isHidden?: boolean;
 };
 
 export type UpdateCmsFixtureChatInput = {
@@ -1626,6 +1627,7 @@ function normalizeCmsFixtureChat(chat: any) {
     replyToUserName: chat.replyToUserName || "",
     replyToMessage: chat.replyToMessage || "",
     reactions: chat.reactions || "{}",
+    isHidden: Boolean(chat.isHidden),
   } as CmsFixtureChat;
 }
 
@@ -1696,6 +1698,30 @@ export async function clearCmsFixtureChatReactions(id: string) {
     entityType: "fixture_chat",
     entityId: id,
     message: `Cleared reactions for fixture chat ${id}`,
+  });
+
+  return normalizeCmsFixtureChat(updated);
+}
+
+
+export async function setCmsFixtureChatHidden(id: string, isHidden: boolean) {
+  const updated = await databases.updateDocument(
+    config.databaseId,
+    config.fixtureChatsCollectionId,
+    id,
+    {
+      isHidden,
+    }
+  );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "fixture_chat",
+    entityId: id,
+    message: `${isHidden ? "Hid" : "Unhid"} fixture chat ${id}`,
+    metadata: {
+      isHidden,
+    },
   });
 
   return normalizeCmsFixtureChat(updated);

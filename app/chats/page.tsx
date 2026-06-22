@@ -12,6 +12,7 @@ import {
   deleteCmsFixtureChat,
   getCmsFixtureChats,
   getCmsFixtureChatsByFixtureId,
+  setCmsFixtureChatHidden,
   updateCmsFixtureChat,
 } from "@/lib/cms";
 import Link from "next/link";
@@ -68,6 +69,9 @@ export default function ChatsAdminPage() {
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
   const [fixtureFilter, setFixtureFilter] = useState("");
+  const [visibilityFilter, setVisibilityFilter] = useState<
+    "all" | "visible" | "hidden"
+  >("all");
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
 
@@ -103,10 +107,20 @@ export default function ChatsAdminPage() {
   const filteredChats = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) return chats;
+    return chats.filter((chat) => {
+      if (visibilityFilter === "visible" && chat.isHidden) {
+        return false;
+      }
 
-    return chats.filter((chat) =>
-      [
+      if (visibilityFilter === "hidden" && !chat.isHidden) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return [
         chat.fixtureId,
         chat.userId,
         chat.userName,
@@ -115,14 +129,15 @@ export default function ChatsAdminPage() {
         chat.replyToUserName,
         chat.replyToMessage,
         chat.reactions,
+        chat.isHidden ? "hidden" : "visible",
         chat.$id,
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(query)
-    );
-  }, [chats, search]);
+        .includes(query);
+    });
+  }, [chats, search, visibilityFilter]);
 
   function updateDraft(id: string, key: keyof ChatDraft, value: string) {
     setDrafts((currentDrafts) => ({
@@ -208,6 +223,37 @@ export default function ChatsAdminPage() {
     }
   }
 
+  async function handleSetHidden(chat: CmsFixtureChat, isHidden: boolean) {
+    try {
+      setSavingId(chat.$id);
+
+      const updated = await setCmsFixtureChatHidden(chat.$id, isHidden);
+
+      setChats((currentChats) =>
+        currentChats.map((currentChat) =>
+          currentChat.$id === chat.$id ? updated : currentChat
+        )
+      );
+
+      setDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [chat.$id]: buildDraft(updated),
+      }));
+
+      showSuccess(
+        isHidden ? "Chat hidden" : "Chat unhidden",
+        isHidden
+          ? "This chat can now be filtered out in the app."
+          : "This chat is visible again."
+      );
+    } catch (error) {
+      console.error("Set chat hidden error:", error);
+      showError("Could not update visibility", getCmsErrorMessage(error));
+    } finally {
+      setSavingId("");
+    }
+  }
+
   async function handleDelete(chat: CmsFixtureChat) {
     if (
       !window.confirm(
@@ -270,7 +316,7 @@ export default function ChatsAdminPage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-8 py-10">
-          <div className="grid gap-5 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm xl:grid-cols-2">
+          <div className="grid gap-5 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm xl:grid-cols-3">
             <label>
               <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
                 Search chats
@@ -305,6 +351,26 @@ export default function ChatsAdminPage() {
                   Apply
                 </button>
               </div>
+            </label>
+
+            <label>
+              <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                Visibility
+              </span>
+
+              <select
+                value={visibilityFilter}
+                onChange={(event) =>
+                  setVisibilityFilter(
+                    event.target.value as "all" | "visible" | "hidden"
+                  )
+                }
+                className="mt-3 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
+              >
+                <option value="all">All messages</option>
+                <option value="visible">Visible only</option>
+                <option value="hidden">Hidden only</option>
+              </select>
             </label>
           </div>
 
@@ -355,6 +421,16 @@ export default function ChatsAdminPage() {
                               Fixture {chat.fixtureId}
                             </span>
                           ) : null}
+
+                          {chat.isHidden ? (
+                            <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-red-700">
+                              Hidden
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-green-700">
+                              Visible
+                            </span>
+                          )}
                         </div>
 
                         <p className="mt-4 whitespace-pre-wrap text-lg leading-8 text-[#29496d]">
@@ -398,6 +474,19 @@ export default function ChatsAdminPage() {
                           className="rounded border border-slate-200 bg-white px-4 py-3 font-bold text-[#29496d] hover:bg-slate-50"
                         >
                           {expanded ? "Close Edit" : "Edit"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSetHidden(chat, !chat.isHidden)}
+                          disabled={savingId === chat.$id}
+                          className={`rounded border px-4 py-3 font-bold disabled:opacity-50 ${
+                            chat.isHidden
+                              ? "border-green-200 bg-white text-green-700 hover:bg-green-50"
+                              : "border-red-200 bg-white text-red-600 hover:bg-red-50"
+                          }`}
+                        >
+                          {chat.isHidden ? "Unhide" : "Hide"}
                         </button>
 
                         <button

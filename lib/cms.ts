@@ -632,20 +632,11 @@ export async function updateCmsFixtureStatus(id: string, status: FixtureStatus) 
 }
 
 export async function deleteCmsFixture(id: string) {
-  await databases.deleteDocument(
+  return databases.deleteDocument(
     config.databaseId,
     config.fixturesCollectionId,
     id
   );
-
-  await createCmsAuditLog({
-    action: "delete",
-    entityType: "fixture",
-    entityId: id,
-    message: `Deleted fixture ${id}`,
-  });
-
-  return true;
 }
 
 export async function getCmsPredictionsForFixture(fixtureId: string) {

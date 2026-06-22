@@ -67,6 +67,7 @@ export default function ChatsAdminPage() {
   const [chats, setChats] = useState<CmsFixtureChat[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ChatDraft>>({});
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [fixtureFilter, setFixtureFilter] = useState("");
   const [visibilityFilter, setVisibilityFilter] = useState<
@@ -74,6 +75,7 @@ export default function ChatsAdminPage() {
   >("all");
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   async function loadChats() {
     try {
@@ -85,6 +87,7 @@ export default function ChatsAdminPage() {
         : await getCmsFixtureChats();
 
       setChats(result);
+      setSelectedIds([]);
 
       const nextDrafts: Record<string, ChatDraft> = {};
       result.forEach((chat) => {
@@ -138,6 +141,87 @@ export default function ChatsAdminPage() {
         .includes(query);
     });
   }, [chats, search, visibilityFilter]);
+
+  const filteredIds = filteredChats.map((chat) => chat.$id);
+  const selectedInFiltered = selectedIds.filter((id) =>
+    filteredIds.includes(id)
+  );
+
+  const allFilteredSelected =
+    filteredChats.length > 0 &&
+    filteredChats.every((chat) => selectedIds.includes(chat.$id));
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((selectedId) => selectedId !== id)
+        : [...current, id]
+    );
+  }
+
+  function toggleSelectAllFiltered() {
+    if (allFilteredSelected) {
+      setSelectedIds((current) =>
+        current.filter((selectedId) => !filteredIds.includes(selectedId))
+      );
+      return;
+    }
+
+    setSelectedIds((current) =>
+      Array.from(new Set([...current, ...filteredIds]))
+    );
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.length === 0) {
+      showWarning("No chats selected", "Select at least one chat message first.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${selectedIds.length} selected chat message${
+        selectedIds.length === 1 ? "" : "s"
+      }? This cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setBulkDeleting(true);
+
+      await Promise.all(selectedIds.map((id) => deleteCmsFixtureChat(id)));
+
+      setChats((currentChats) =>
+        currentChats.filter((chat) => !selectedIds.includes(chat.$id))
+      );
+
+      setExpandedIds((currentExpanded) => {
+        const nextExpanded = { ...currentExpanded };
+
+        selectedIds.forEach((id) => {
+          delete nextExpanded[id];
+        });
+
+        return nextExpanded;
+      });
+
+      showSuccess(
+        "Chats deleted",
+        `Deleted ${selectedIds.length} selected chat message${
+          selectedIds.length === 1 ? "" : "s"
+        }.`
+      );
+
+      setSelectedIds([]);
+    } catch (error) {
+      console.error("Bulk delete fixture chats error:", error);
+      showError("Could not delete chats", getCmsErrorMessage(error));
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   function updateDraft(id: string, key: keyof ChatDraft, value: string) {
     setDrafts((currentDrafts) => ({
@@ -375,15 +459,57 @@ export default function ChatsAdminPage() {
           </div>
 
           <div className="mt-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="font-bold">
-              Showing {filteredChats.length} of {chats.length} loaded chat
-              messages
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="font-bold">
+                  Showing {filteredChats.length} of {chats.length} loaded chat
+                  messages
+                </p>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Without a fixture filter, this page loads the latest 500 chat
-              messages.
-            </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Without a fixture filter, this page loads the latest 500 chat
+                  messages.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <label className="flex cursor-pointer items-center gap-3 font-bold text-[#29496d]">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllFiltered}
+                    className="h-5 w-5"
+                  />
+
+                  Select all visible
+                </label>
+
+                <span className="text-sm font-semibold text-slate-500">
+                  {selectedIds.length} selected
+                  {selectedInFiltered.length !== selectedIds.length
+                    ? ` · ${selectedInFiltered.length} visible`
+                    : ""}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([])}
+                  disabled={selectedIds.length === 0 || bulkDeleting}
+                  className="rounded border border-slate-200 bg-white px-4 py-3 font-bold text-[#29496d] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Clear
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={selectedIds.length === 0 || bulkDeleting}
+                  className="rounded bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {bulkDeleting ? "Deleting..." : "Delete Selected"}
+                </button>
+              </div>
+            </div>
           </div>
 
           {loading ? (
@@ -403,10 +529,27 @@ export default function ChatsAdminPage() {
                 return (
                   <article
                     key={chat.$id}
-                    className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm"
+                    className={`rounded-[28px] border bg-white p-6 shadow-sm transition ${
+                      selectedIds.includes(chat.$id)
+                        ? "border-red-300 ring-2 ring-red-100"
+                        : "border-slate-200"
+                    }`}
                   >
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                      <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-1 gap-4">
+                        <label className="mt-1 flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(chat.$id)}
+                            onChange={() => toggleSelected(chat.$id)}
+                            className="h-5 w-5"
+                            aria-label={`Select chat from ${
+                              chat.userName || "unknown user"
+                            }`}
+                          />
+                        </label>
+
+                        <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-cyan-700">
                             {chat.userName || "Unknown user"}
@@ -460,6 +603,7 @@ export default function ChatsAdminPage() {
                             <p>Reply ID: {chat.replyToMessageId}</p>
                           ) : null}
                         </div>
+                        </div>
                       </div>
 
                       <div className="flex flex-wrap gap-3">
@@ -479,7 +623,7 @@ export default function ChatsAdminPage() {
                         <button
                           type="button"
                           onClick={() => handleSetHidden(chat, !chat.isHidden)}
-                          disabled={savingId === chat.$id}
+                          disabled={savingId === chat.$id || bulkDeleting}
                           className={`rounded border px-4 py-3 font-bold disabled:opacity-50 ${
                             chat.isHidden
                               ? "border-green-200 bg-white text-green-700 hover:bg-green-50"
@@ -492,7 +636,7 @@ export default function ChatsAdminPage() {
                         <button
                           type="button"
                           onClick={() => handleClearReactions(chat)}
-                          disabled={savingId === chat.$id}
+                          disabled={savingId === chat.$id || bulkDeleting}
                           className="rounded border border-yellow-200 bg-white px-4 py-3 font-bold text-yellow-700 hover:bg-yellow-50 disabled:opacity-50"
                         >
                           Clear Reactions
@@ -501,7 +645,7 @@ export default function ChatsAdminPage() {
                         <button
                           type="button"
                           onClick={() => handleDelete(chat)}
-                          disabled={savingId === chat.$id}
+                          disabled={savingId === chat.$id || bulkDeleting}
                           className="rounded border border-red-200 bg-white px-4 py-3 font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
                         >
                           Delete
@@ -609,7 +753,7 @@ export default function ChatsAdminPage() {
                           <button
                             type="button"
                             onClick={() => handleSave(chat)}
-                            disabled={savingId === chat.$id}
+                            disabled={savingId === chat.$id || bulkDeleting}
                             className="rounded bg-cyan-500 px-6 py-4 font-bold text-white hover:bg-cyan-600 disabled:opacity-50"
                           >
                             {savingId === chat.$id ? "Saving..." : "Save Chat"}

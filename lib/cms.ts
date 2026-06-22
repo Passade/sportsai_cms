@@ -90,6 +90,7 @@ export type CreateFixtureInput = {
   homeScore: string;
   awayScore: string;
   isStreamed: boolean;
+  streamId?: string;
 };
 
 export type CmsPrediction = {
@@ -301,6 +302,7 @@ function buildFixtureData(input: CreateFixtureInput) {
     homeScore: toInteger(input.homeScore),
     awayScore: toInteger(input.awayScore),
     isStreamed: input.isStreamed,
+    streamId: input.streamId?.trim() || "",
   };
 
   return {

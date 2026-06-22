@@ -3,17 +3,21 @@
 import CmsAuthGuard from "@/components/cms-auth-guard";
 import CmsLogoutButton from "@/components/cms-logout-button";
 import {
+  CmsFixture,
+  FixtureStatus,
   CmsPlayer,
   CmsTeam,
+  createCmsFixture,
   createCmsPlayer,
   createCmsTeam,
+  getCmsFixtures,
   getCmsPlayers,
   getCmsTeams,
 } from "@/lib/cms";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 
-type ImportMode = "teams" | "players";
+type ImportMode = "teams" | "players" | "fixtures";
 type ImportStatus = "ready" | "duplicate" | "invalid" | "imported" | "failed";
 
 type TeamImportRow = {
@@ -42,8 +46,36 @@ type PlayerImportRow = {
   message: string;
 };
 
+type FixtureImportRow = {
+  rowNumber: number;
+  homeTeam: string;
+  awayTeam: string;
+  sport: string;
+  communityName: string;
+  competition: string;
+  venue: string;
+  matchDate: string;
+  status: string;
+  homeScore: string;
+  awayScore: string;
+  isStreamed: string;
+  streamId: string;
+  statusResult: ImportStatus;
+  message: string;
+};
+
 function normalizeText(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function normalizeDateKey(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return normalizeText(value);
+  }
+
+  return date.toISOString();
 }
 
 function parseCsvLine(line: string) {
@@ -152,6 +184,35 @@ function parsePlayersCsv(csvText: string) {
   }));
 }
 
+function parseFixturesCsv(csvText: string) {
+  const { headers, rows } = parseCsv(csvText);
+
+  const requiredColumns = ["hometeam", "awayteam", "matchdate"];
+
+  for (const column of requiredColumns) {
+    if (!headers.includes(column)) {
+      throw new Error(`Fixtures CSV must include a "${column}" column.`);
+    }
+  }
+
+  return rows.map((row) => ({
+    rowNumber: row.rowNumber,
+    homeTeam: getColumn(headers, row.values, "hometeam"),
+    awayTeam: getColumn(headers, row.values, "awayteam"),
+    sport: getColumn(headers, row.values, "sport") || "Football",
+    communityName:
+      getColumn(headers, row.values, "communityname") || "Derby Day",
+    competition: getColumn(headers, row.values, "competition"),
+    venue: getColumn(headers, row.values, "venue"),
+    matchDate: getColumn(headers, row.values, "matchdate"),
+    status: getColumn(headers, row.values, "status") || "upcoming",
+    homeScore: getColumn(headers, row.values, "homescore") || "0",
+    awayScore: getColumn(headers, row.values, "awayscore") || "0",
+    isStreamed: getColumn(headers, row.values, "isstreamed") || "false",
+    streamId: getColumn(headers, row.values, "streamid"),
+  }));
+}
+
 function validateUrl(value: string) {
   const trimmed = value.trim();
 
@@ -177,11 +238,21 @@ function validateIntegerString(value: string) {
   return /^\d+$/.test(trimmed);
 }
 
-function validateDateString(value: string) {
+function validateScoreString(value: string) {
   const trimmed = value.trim();
 
   if (!trimmed) {
     return true;
+  }
+
+  return /^-?\d+$/.test(trimmed);
+}
+
+function validateDateString(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return false;
   }
 
   const date = new Date(trimmed);
@@ -189,12 +260,45 @@ function validateDateString(value: string) {
   return !Number.isNaN(date.getTime());
 }
 
-function parseActive(value: string) {
+function parseBoolean(value: string, defaultValue = false) {
   const normalized = value.trim().toLowerCase();
 
-  if (!normalized) return true;
+  if (!normalized) return defaultValue;
 
-  return ["true", "yes", "1", "active"].includes(normalized);
+  return ["true", "yes", "1", "active", "streamed"].includes(normalized);
+}
+
+function parseActive(value: string) {
+  return parseBoolean(value, true);
+}
+
+function parseFixtureStatus(value: string): FixtureStatus {
+  const normalized = value.trim().toLowerCase();
+
+  if (
+    normalized === "live" ||
+    normalized === "completed" ||
+    normalized === "cancelled" ||
+    normalized === "hidden"
+  ) {
+    return normalized;
+  }
+
+  return "upcoming";
+}
+
+function getFixtureDuplicateKey(row: {
+  homeTeam: string;
+  awayTeam: string;
+  matchDate: string;
+  competition: string;
+}) {
+  return [
+    normalizeText(row.homeTeam),
+    normalizeText(row.awayTeam),
+    normalizeDateKey(row.matchDate),
+    normalizeText(row.competition),
+  ].join("|");
 }
 
 function getStatusClass(status: ImportStatus) {
@@ -216,10 +320,16 @@ function downloadTemplate(mode: ImportMode) {
           "St George's College,STG,",
           "Churchill School,CHS,",
         ].join("\n")
-      : [
+      : mode === "players"
+      ? [
           "name,school,teamName,sport,position,number,dateOfBirth,age,country,imageUrl,active",
           "Tinashe Moyo,Prince Edward,Prince Edward,Football,Forward,10,2008-05-12,17,Zimbabwe,,true",
           "Kuda Nyoni,St George's College,St George's College,Football,Midfielder,8,2008-09-20,17,Zimbabwe,,true",
+        ].join("\n")
+      : [
+          "homeTeam,awayTeam,sport,communityName,competition,venue,matchDate,status,homeScore,awayScore,isStreamed,streamId",
+          "Prince Edward,St George's College,Football,Derby Day,Schools League,PE Main Field,2026-07-10T15:00:00.000Z,upcoming,0,0,false,",
+          "Churchill School,Peterhouse,Football,Derby Day,Schools League,Churchill Main Field,2026-07-17T15:00:00.000Z,upcoming,0,0,false,",
         ].join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -230,7 +340,9 @@ function downloadTemplate(mode: ImportMode) {
   anchor.download =
     mode === "teams"
       ? "sportsai_teams_import_template.csv"
-      : "sportsai_players_import_template.csv";
+      : mode === "players"
+      ? "sportsai_players_import_template.csv"
+      : "sportsai_fixtures_import_template.csv";
   anchor.click();
 
   URL.revokeObjectURL(url);
@@ -270,23 +382,46 @@ export default function ImportPage() {
   const [mode, setMode] = useState<ImportMode>("teams");
   const [teamRows, setTeamRows] = useState<TeamImportRow[]>([]);
   const [playerRows, setPlayerRows] = useState<PlayerImportRow[]>([]);
+  const [fixtureRows, setFixtureRows] = useState<FixtureImportRow[]>([]);
   const [existingTeams, setExistingTeams] = useState<CmsTeam[]>([]);
   const [existingPlayers, setExistingPlayers] = useState<CmsPlayer[]>([]);
+  const [existingFixtures, setExistingFixtures] = useState<CmsFixture[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  const rows = mode === "teams" ? teamRows : playerRows;
+  const rows =
+    mode === "teams" ? teamRows : mode === "players" ? playerRows : fixtureRows;
 
   const summary = useMemo(() => {
     return {
       total: rows.length,
-      ready: rows.filter((row) => row.status === "ready").length,
-      duplicate: rows.filter((row) => row.status === "duplicate").length,
-      invalid: rows.filter((row) => row.status === "invalid").length,
-      imported: rows.filter((row) => row.status === "imported").length,
-      failed: rows.filter((row) => row.status === "failed").length,
+      ready: rows.filter((row: any) =>
+        mode === "fixtures"
+          ? row.statusResult === "ready"
+          : row.status === "ready"
+      ).length,
+      duplicate: rows.filter((row: any) =>
+        mode === "fixtures"
+          ? row.statusResult === "duplicate"
+          : row.status === "duplicate"
+      ).length,
+      invalid: rows.filter((row: any) =>
+        mode === "fixtures"
+          ? row.statusResult === "invalid"
+          : row.status === "invalid"
+      ).length,
+      imported: rows.filter((row: any) =>
+        mode === "fixtures"
+          ? row.statusResult === "imported"
+          : row.status === "imported"
+      ).length,
+      failed: rows.filter((row: any) =>
+        mode === "fixtures"
+          ? row.statusResult === "failed"
+          : row.status === "failed"
+      ).length,
     };
-  }, [rows]);
+  }, [rows, mode]);
 
   async function loadExistingTeams() {
     const teams = await getCmsTeams();
@@ -298,6 +433,12 @@ export default function ImportPage() {
     const players = await getCmsPlayers();
     setExistingPlayers(players);
     return players;
+  }
+
+  async function loadExistingFixtures() {
+    const fixtures = await getCmsFixtures();
+    setExistingFixtures(fixtures);
+    return fixtures;
   }
 
   function validateTeamRows(
@@ -418,7 +559,7 @@ export default function ImportPage() {
         };
       }
 
-      if (!validateDateString(row.dateOfBirth)) {
+      if (row.dateOfBirth.trim() && !validateDateString(row.dateOfBirth)) {
         return {
           ...row,
           status: "invalid" as ImportStatus,
@@ -460,6 +601,113 @@ export default function ImportPage() {
     });
   }
 
+  function validateFixtureRows(
+    parsedRows: Array<{
+      rowNumber: number;
+      homeTeam: string;
+      awayTeam: string;
+      sport: string;
+      communityName: string;
+      competition: string;
+      venue: string;
+      matchDate: string;
+      status: string;
+      homeScore: string;
+      awayScore: string;
+      isStreamed: string;
+      streamId: string;
+    }>,
+    fixtures: CmsFixture[]
+  ) {
+    const existingKeys = new Set(
+      fixtures.map((fixture) =>
+        getFixtureDuplicateKey({
+          homeTeam: fixture.homeTeam || "",
+          awayTeam: fixture.awayTeam || "",
+          matchDate: fixture.matchDate || "",
+          competition: fixture.competition || "",
+        })
+      )
+    );
+    const seenKeys = new Set<string>();
+
+    return parsedRows.map((row) => {
+      const key = getFixtureDuplicateKey(row);
+
+      if (!row.homeTeam.trim()) {
+        return {
+          ...row,
+          statusResult: "invalid" as ImportStatus,
+          message: "Missing home team.",
+        };
+      }
+
+      if (!row.awayTeam.trim()) {
+        return {
+          ...row,
+          statusResult: "invalid" as ImportStatus,
+          message: "Missing away team.",
+        };
+      }
+
+      if (normalizeText(row.homeTeam) === normalizeText(row.awayTeam)) {
+        return {
+          ...row,
+          statusResult: "invalid" as ImportStatus,
+          message: "Home team and away team cannot be the same.",
+        };
+      }
+
+      if (!validateDateString(row.matchDate)) {
+        return {
+          ...row,
+          statusResult: "invalid" as ImportStatus,
+          message: "Match date must be a valid date.",
+        };
+      }
+
+      if (!validateScoreString(row.homeScore)) {
+        return {
+          ...row,
+          statusResult: "invalid" as ImportStatus,
+          message: "Home score must be a whole number.",
+        };
+      }
+
+      if (!validateScoreString(row.awayScore)) {
+        return {
+          ...row,
+          statusResult: "invalid" as ImportStatus,
+          message: "Away score must be a whole number.",
+        };
+      }
+
+      if (existingKeys.has(key)) {
+        return {
+          ...row,
+          statusResult: "duplicate" as ImportStatus,
+          message: "Fixture already exists in Appwrite.",
+        };
+      }
+
+      if (seenKeys.has(key)) {
+        return {
+          ...row,
+          statusResult: "duplicate" as ImportStatus,
+          message: "Duplicate fixture in this CSV.",
+        };
+      }
+
+      seenKeys.add(key);
+
+      return {
+        ...row,
+        statusResult: "ready" as ImportStatus,
+        message: "Ready to import.",
+      };
+    });
+  }
+
   async function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
@@ -477,11 +725,16 @@ export default function ImportPage() {
         const teams = await loadExistingTeams();
 
         setTeamRows(validateTeamRows(parsedRows, teams));
-      } else {
+      } else if (mode === "players") {
         const parsedRows = parsePlayersCsv(text);
         const players = await loadExistingPlayers();
 
         setPlayerRows(validatePlayerRows(parsedRows, players));
+      } else {
+        const parsedRows = parseFixturesCsv(text);
+        const fixtures = await loadExistingFixtures();
+
+        setFixtureRows(validateFixtureRows(parsedRows, fixtures));
       }
     } catch (error: any) {
       console.error("CSV parse error:", error);
@@ -502,10 +755,15 @@ export default function ImportPage() {
       if (mode === "teams") {
         const teams = await loadExistingTeams();
         setTeamRows((currentRows) => validateTeamRows(currentRows, teams));
-      } else {
+      } else if (mode === "players") {
         const players = await loadExistingPlayers();
         setPlayerRows((currentRows) =>
           validatePlayerRows(currentRows, players)
+        );
+      } else {
+        const fixtures = await loadExistingFixtures();
+        setFixtureRows((currentRows) =>
+          validateFixtureRows(currentRows, fixtures)
         );
       }
     } catch (error: any) {
@@ -551,8 +809,6 @@ export default function ImportPage() {
             )
           );
         } catch (error: any) {
-          console.error("Team import row error:", row, error);
-
           setTeamRows((currentRows) =>
             currentRows.map((currentRow) =>
               currentRow.rowNumber === row.rowNumber
@@ -619,8 +875,6 @@ export default function ImportPage() {
             )
           );
         } catch (error: any) {
-          console.error("Player import row error:", row, error);
-
           setPlayerRows((currentRows) =>
             currentRows.map((currentRow) =>
               currentRow.rowNumber === row.rowNumber
@@ -644,13 +898,286 @@ export default function ImportPage() {
     }
   }
 
+  async function handleImportFixtures() {
+    const readyRows = fixtureRows.filter(
+      (row) => row.statusResult === "ready"
+    );
+
+    if (readyRows.length === 0) {
+      alert("No ready fixture rows to import.");
+      return;
+    }
+
+    if (!window.confirm(`Import ${readyRows.length} fixtures?`)) {
+      return;
+    }
+
+    try {
+      setImporting(true);
+
+      for (const row of readyRows) {
+        try {
+          await createCmsFixture({
+            homeTeam: row.homeTeam,
+            awayTeam: row.awayTeam,
+            sport: row.sport,
+            communityName: row.communityName,
+            competition: row.competition,
+            venue: row.venue,
+            matchDate: row.matchDate,
+            status: parseFixtureStatus(row.status),
+            homeScore: row.homeScore,
+            awayScore: row.awayScore,
+            isStreamed: parseBoolean(row.isStreamed, false),
+            streamId: row.streamId,
+          });
+
+          setFixtureRows((currentRows) =>
+            currentRows.map((currentRow) =>
+              currentRow.rowNumber === row.rowNumber
+                ? {
+                    ...currentRow,
+                    statusResult: "imported",
+                    message: "Imported successfully.",
+                  }
+                : currentRow
+            )
+          );
+        } catch (error: any) {
+          setFixtureRows((currentRows) =>
+            currentRows.map((currentRow) =>
+              currentRow.rowNumber === row.rowNumber
+                ? {
+                    ...currentRow,
+                    statusResult: "failed",
+                    message:
+                      error?.message ||
+                      error?.response?.message ||
+                      "Import failed.",
+                  }
+                : currentRow
+            )
+          );
+        }
+      }
+
+      await loadExistingFixtures();
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function handleImportReadyRows() {
     if (mode === "teams") {
       await handleImportTeams();
       return;
     }
 
-    await handleImportPlayers();
+    if (mode === "players") {
+      await handleImportPlayers();
+      return;
+    }
+
+    await handleImportFixtures();
+  }
+
+  function renderModeDescription() {
+    if (mode === "teams") {
+      return (
+        <>
+          Required column: <strong>name</strong>. Optional columns:
+          <strong> shortName</strong> and <strong>logoUrl</strong>. Duplicates
+          are skipped by team name.
+        </>
+      );
+    }
+
+    if (mode === "players") {
+      return (
+        <>
+          Required column: <strong>name</strong>. Optional columns:
+          <strong> school</strong>, <strong>teamName</strong>,{" "}
+          <strong>sport</strong>, <strong>position</strong>,{" "}
+          <strong>number</strong>, <strong>dateOfBirth</strong>,{" "}
+          <strong>age</strong>, <strong>country</strong>,{" "}
+          <strong>imageUrl</strong>, and <strong>active</strong>.
+        </>
+      );
+    }
+
+    return (
+      <>
+        Required columns: <strong>homeTeam</strong>, <strong>awayTeam</strong>,{" "}
+        and <strong>matchDate</strong>. Optional columns include{" "}
+        <strong>sport</strong>, <strong>communityName</strong>,{" "}
+        <strong>competition</strong>, <strong>venue</strong>,{" "}
+        <strong>status</strong>, <strong>homeScore</strong>,{" "}
+        <strong>awayScore</strong>, <strong>isStreamed</strong>, and{" "}
+        <strong>streamId</strong>.
+      </>
+    );
+  }
+
+  function renderPreviewTable() {
+    if (rows.length === 0) {
+      return (
+        <div className="p-8 text-slate-500">
+          Upload a {mode} CSV to preview rows.
+        </div>
+      );
+    }
+
+    if (mode === "teams") {
+      return (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse">
+            <thead className="bg-slate-50">
+              <tr className="text-left text-sm font-bold uppercase tracking-wide text-slate-400">
+                <th className="px-5 py-4">Row</th>
+                <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Name</th>
+                <th className="px-5 py-4">Short Name</th>
+                <th className="px-5 py-4">Logo URL</th>
+                <th className="px-5 py-4">Message</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {teamRows.map((row) => (
+                <tr key={row.rowNumber} className="border-t border-slate-100">
+                  <td className="px-5 py-4 font-bold">{row.rowNumber}</td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getStatusClass(
+                        row.status
+                      )}`}
+                    >
+                      {row.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 font-bold">{row.name}</td>
+                  <td className="px-5 py-4">{row.shortName}</td>
+                  <td className="max-w-[260px] truncate px-5 py-4 text-sm text-slate-500">
+                    {row.logoUrl}
+                  </td>
+                  <td className="px-5 py-4 text-sm text-slate-500">
+                    {row.message}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    if (mode === "players") {
+      return (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1250px] border-collapse">
+            <thead className="bg-slate-50">
+              <tr className="text-left text-sm font-bold uppercase tracking-wide text-slate-400">
+                <th className="px-5 py-4">Row</th>
+                <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Name</th>
+                <th className="px-5 py-4">School</th>
+                <th className="px-5 py-4">Team</th>
+                <th className="px-5 py-4">Sport</th>
+                <th className="px-5 py-4">Position</th>
+                <th className="px-5 py-4">No.</th>
+                <th className="px-5 py-4">Age</th>
+                <th className="px-5 py-4">Active</th>
+                <th className="px-5 py-4">Message</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {playerRows.map((row) => (
+                <tr key={row.rowNumber} className="border-t border-slate-100">
+                  <td className="px-5 py-4 font-bold">{row.rowNumber}</td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getStatusClass(
+                        row.status
+                      )}`}
+                    >
+                      {row.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 font-bold">{row.name}</td>
+                  <td className="px-5 py-4">{row.school}</td>
+                  <td className="px-5 py-4">{row.teamName}</td>
+                  <td className="px-5 py-4">{row.sport}</td>
+                  <td className="px-5 py-4">{row.position}</td>
+                  <td className="px-5 py-4">{row.number}</td>
+                  <td className="px-5 py-4">{row.age}</td>
+                  <td className="px-5 py-4">{row.active || "true"}</td>
+                  <td className="px-5 py-4 text-sm text-slate-500">
+                    {row.message}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1500px] border-collapse">
+          <thead className="bg-slate-50">
+            <tr className="text-left text-sm font-bold uppercase tracking-wide text-slate-400">
+              <th className="px-5 py-4">Row</th>
+              <th className="px-5 py-4">Status</th>
+              <th className="px-5 py-4">Home</th>
+              <th className="px-5 py-4">Away</th>
+              <th className="px-5 py-4">Sport</th>
+              <th className="px-5 py-4">Community</th>
+              <th className="px-5 py-4">Competition</th>
+              <th className="px-5 py-4">Venue</th>
+              <th className="px-5 py-4">Match Date</th>
+              <th className="px-5 py-4">Fixture Status</th>
+              <th className="px-5 py-4">Score</th>
+              <th className="px-5 py-4">Streamed</th>
+              <th className="px-5 py-4">Message</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {fixtureRows.map((row) => (
+              <tr key={row.rowNumber} className="border-t border-slate-100">
+                <td className="px-5 py-4 font-bold">{row.rowNumber}</td>
+                <td className="px-5 py-4">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getStatusClass(
+                      row.statusResult
+                    )}`}
+                  >
+                    {row.statusResult}
+                  </span>
+                </td>
+                <td className="px-5 py-4 font-bold">{row.homeTeam}</td>
+                <td className="px-5 py-4 font-bold">{row.awayTeam}</td>
+                <td className="px-5 py-4">{row.sport}</td>
+                <td className="px-5 py-4">{row.communityName}</td>
+                <td className="px-5 py-4">{row.competition}</td>
+                <td className="px-5 py-4">{row.venue}</td>
+                <td className="px-5 py-4">{row.matchDate}</td>
+                <td className="px-5 py-4">{row.status}</td>
+                <td className="px-5 py-4">
+                  {row.homeScore || "0"} - {row.awayScore || "0"}
+                </td>
+                <td className="px-5 py-4">{row.isStreamed || "false"}</td>
+                <td className="px-5 py-4 text-sm text-slate-500">
+                  {row.message}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   }
 
   return (
@@ -702,38 +1229,41 @@ export default function ImportPage() {
             >
               Players Import
             </button>
+
+            <button
+              type="button"
+              onClick={() => setMode("fixtures")}
+              className={`rounded px-5 py-4 font-bold transition ${
+                mode === "fixtures"
+                  ? "bg-cyan-500 text-white"
+                  : "border border-slate-200 bg-white text-[#29496d] hover:bg-slate-50"
+              }`}
+            >
+              Fixtures Import
+            </button>
           </div>
 
           <div className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <p className="text-sm font-bold uppercase tracking-[3px] text-cyan-600">
-                  {mode === "teams" ? "Teams Import" : "Players Import"}
+                  {mode === "teams"
+                    ? "Teams Import"
+                    : mode === "players"
+                    ? "Players Import"
+                    : "Fixtures Import"}
                 </p>
 
                 <h2 className="mt-3 text-3xl font-bold">
                   {mode === "teams"
                     ? "Import teams from CSV"
-                    : "Import players from CSV"}
+                    : mode === "players"
+                    ? "Import players from CSV"
+                    : "Import fixtures from CSV"}
                 </h2>
 
-                <p className="mt-3 max-w-3xl text-lg leading-8 text-slate-500">
-                  {mode === "teams" ? (
-                    <>
-                      Required column: <strong>name</strong>. Optional columns:
-                      <strong> shortName</strong> and <strong>logoUrl</strong>.
-                      Duplicates are skipped by team name.
-                    </>
-                  ) : (
-                    <>
-                      Required column: <strong>name</strong>. Optional columns:
-                      <strong> school</strong>, <strong>teamName</strong>,{" "}
-                      <strong>sport</strong>, <strong>position</strong>,{" "}
-                      <strong>number</strong>, <strong>dateOfBirth</strong>,{" "}
-                      <strong>age</strong>, <strong>country</strong>,{" "}
-                      <strong>imageUrl</strong>, and <strong>active</strong>.
-                    </>
-                  )}
+                <p className="mt-3 max-w-4xl text-lg leading-8 text-slate-500">
+                  {renderModeDescription()}
                 </p>
               </div>
 
@@ -756,7 +1286,9 @@ export default function ImportPage() {
                     ? "Reading..."
                     : mode === "teams"
                     ? "Upload Teams CSV"
-                    : "Upload Players CSV"}
+                    : mode === "players"
+                    ? "Upload Players CSV"
+                    : "Upload Fixtures CSV"}
                 </button>
               </div>
             </div>
@@ -802,106 +1334,17 @@ export default function ImportPage() {
               {importing
                 ? "Importing..."
                 : `Import ${summary.ready} Ready ${
-                    mode === "teams" ? "Teams" : "Players"
+                    mode === "teams"
+                      ? "Teams"
+                      : mode === "players"
+                      ? "Players"
+                      : "Fixtures"
                   }`}
             </button>
           </div>
 
           <div className="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-            {rows.length === 0 ? (
-              <div className="p-8 text-slate-500">
-                Upload a {mode === "teams" ? "teams" : "players"} CSV to
-                preview rows.
-              </div>
-            ) : mode === "teams" ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] border-collapse">
-                  <thead className="bg-slate-50">
-                    <tr className="text-left text-sm font-bold uppercase tracking-wide text-slate-400">
-                      <th className="px-5 py-4">Row</th>
-                      <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Name</th>
-                      <th className="px-5 py-4">Short Name</th>
-                      <th className="px-5 py-4">Logo URL</th>
-                      <th className="px-5 py-4">Message</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {teamRows.map((row) => (
-                      <tr key={row.rowNumber} className="border-t border-slate-100">
-                        <td className="px-5 py-4 font-bold">{row.rowNumber}</td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getStatusClass(
-                              row.status
-                            )}`}
-                          >
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 font-bold">{row.name}</td>
-                        <td className="px-5 py-4">{row.shortName}</td>
-                        <td className="max-w-[260px] truncate px-5 py-4 text-sm text-slate-500">
-                          {row.logoUrl}
-                        </td>
-                        <td className="px-5 py-4 text-sm text-slate-500">
-                          {row.message}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1250px] border-collapse">
-                  <thead className="bg-slate-50">
-                    <tr className="text-left text-sm font-bold uppercase tracking-wide text-slate-400">
-                      <th className="px-5 py-4">Row</th>
-                      <th className="px-5 py-4">Status</th>
-                      <th className="px-5 py-4">Name</th>
-                      <th className="px-5 py-4">School</th>
-                      <th className="px-5 py-4">Team</th>
-                      <th className="px-5 py-4">Sport</th>
-                      <th className="px-5 py-4">Position</th>
-                      <th className="px-5 py-4">No.</th>
-                      <th className="px-5 py-4">Age</th>
-                      <th className="px-5 py-4">Active</th>
-                      <th className="px-5 py-4">Message</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {playerRows.map((row) => (
-                      <tr key={row.rowNumber} className="border-t border-slate-100">
-                        <td className="px-5 py-4 font-bold">{row.rowNumber}</td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getStatusClass(
-                              row.status
-                            )}`}
-                          >
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 font-bold">{row.name}</td>
-                        <td className="px-5 py-4">{row.school}</td>
-                        <td className="px-5 py-4">{row.teamName}</td>
-                        <td className="px-5 py-4">{row.sport}</td>
-                        <td className="px-5 py-4">{row.position}</td>
-                        <td className="px-5 py-4">{row.number}</td>
-                        <td className="px-5 py-4">{row.age}</td>
-                        <td className="px-5 py-4">{row.active || "true"}</td>
-                        <td className="px-5 py-4 text-sm text-slate-500">
-                          {row.message}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {renderPreviewTable()}
           </div>
         </section>
       </main>

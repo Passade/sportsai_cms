@@ -256,6 +256,13 @@ export default function DashboardPage() {
             />
 
             <DashboardCard
+              title="Bulk Import"
+              description="Upload CSV files to quickly create teams, players, fixtures and more."
+              href="/import"
+              badge="Tools"
+            />
+
+            <DashboardCard
               title="Teams"
               description="Create and manage team names, short names and logos."
               href="/teams"

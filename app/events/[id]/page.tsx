@@ -272,6 +272,7 @@ export default function EditEventPage() {
         description: description.trim(),
         competition: competition.trim() || club.trim(),
         isFeatured,
+        camera: camera.trim(),
         sport: sport.trim(),
         vodType,
         fixturesId: fixturesId.trim(),

@@ -167,7 +167,6 @@ export default function EditEventPage() {
   const [teamsLoading, setTeamsLoading] = useState(true);
 
   const [title, setTitle] = useState("");
-  const [hideFromOtt, setHideFromOtt] = useState(false);
 
   const [club, setClub] = useState("");
   const [sport, setSport] = useState("");
@@ -183,6 +182,7 @@ export default function EditEventPage() {
 
   const [streamUrl, setStreamUrl] = useState("");
   const [vodUrl, setVodUrl] = useState("");
+  const [camera, setCamera] = useState("");
   const [thumbnail, setThumbnail] = useState("");
   const [fixturesId, setFixturesId] = useState("");
   const [description, setDescription] = useState("");
@@ -219,13 +219,13 @@ export default function EditEventPage() {
         setCompetition(event.competition || "");
         setClub(event.competition || "");
         setStatus((event.status || "upcoming") as EventStatus);
-        setHideFromOtt(event.status === "hidden");
         setVodType((event.vodType || "video") as VodType);
         setMatchDate(toDatetimeLocal(event.matchDate));
         setHomeTeam(event.homeTeam || "");
         setAwayTeam(event.awayTeam || "");
         setStreamUrl(event.streamUrl || "");
         setVodUrl(event.vodUrl || "");
+        setCamera(event.camera || "");
         setThumbnail(event.thumbnail || "");
         setFixturesId(event.fixturesId || "");
         setDescription(event.description || "");
@@ -261,7 +261,7 @@ export default function EditEventPage() {
 
       await updateCmsEvent(eventId, {
         title: title.trim(),
-        status: hideFromOtt ? "hidden" : status,
+        status,
         homeTeam: homeTeam.trim(),
         awayTeam: awayTeam.trim(),
         matchDate,
@@ -348,15 +348,19 @@ export default function EditEventPage() {
                 <TextField value={title} onChange={setTitle} placeholder="Name" />
               </div>
 
-              <label className="col-span-3 flex items-center gap-4 text-xl font-medium text-[#29496d]">
+                            <label className="col-span-12 md:col-span-6">
+                <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                  Camera
+                </span>
+
                 <input
-                  type="checkbox"
-                  checked={hideFromOtt}
-                  onChange={(event) => setHideFromOtt(event.target.checked)}
-                  className="h-6 w-6"
+                  value={camera}
+                  onChange={(event) => setCamera(event.target.value)}
+                  placeholder="Camera 1, Main camera, Pitch camera..."
+                  className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
                 />
-                Hide event from OTT
               </label>
+
 
               <div className="col-span-6">
                 <TextField

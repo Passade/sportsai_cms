@@ -116,6 +116,7 @@ export type CreateEventInput = {
   thumbnail: string;
   streamUrl: string;
   vodUrl: string;
+  camera: string;
   description: string;
   competition: string;
   isFeatured: boolean;

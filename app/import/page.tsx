@@ -3,16 +3,10 @@
 import CmsAuthGuard from "@/components/cms-auth-guard";
 import CmsLogoutButton from "@/components/cms-logout-button";
 import {
-  CmsFixture,
   FixtureStatus,
-  CmsPlayer,
-  CmsTeam,
   createCmsFixture,
   createCmsPlayer,
   createCmsTeam,
-  getCmsFixtures,
-  getCmsPlayers,
-  getCmsTeams,
 } from "@/lib/cms";
 import Link from "next/link";
 import { getCmsErrorMessage, useCmsToast } from "@/components/cms-toast-provider";
@@ -385,9 +379,6 @@ export default function ImportPage() {
   const [teamRows, setTeamRows] = useState<TeamImportRow[]>([]);
   const [playerRows, setPlayerRows] = useState<PlayerImportRow[]>([]);
   const [fixtureRows, setFixtureRows] = useState<FixtureImportRow[]>([]);
-  const [existingTeams, setExistingTeams] = useState<CmsTeam[]>([]);
-  const [existingPlayers, setExistingPlayers] = useState<CmsPlayer[]>([]);
-  const [existingFixtures, setExistingFixtures] = useState<CmsFixture[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -425,23 +416,6 @@ export default function ImportPage() {
     };
   }, [rows, mode]);
 
-  async function loadExistingTeams() {
-    const teams = await getCmsTeams();
-    setExistingTeams(teams);
-    return teams;
-  }
-
-  async function loadExistingPlayers() {
-    const players = await getCmsPlayers();
-    setExistingPlayers(players);
-    return players;
-  }
-
-  async function loadExistingFixtures() {
-    const fixtures = await getCmsFixtures();
-    setExistingFixtures(fixtures);
-    return fixtures;
-  }
 
   function validateTeamRows(
     parsedRows: Array<{
@@ -449,12 +423,8 @@ export default function ImportPage() {
       name: string;
       shortName: string;
       logoUrl: string;
-    }>,
-    teams: CmsTeam[]
+    }>
   ) {
-    const existingNames = new Set(
-      teams.map((team) => normalizeText(team.name || ""))
-    );
     const seenNames = new Set<string>();
 
     return parsedRows.map((row) => {
@@ -473,14 +443,6 @@ export default function ImportPage() {
           ...row,
           status: "invalid" as ImportStatus,
           message: "Logo URL must be a valid http or https URL.",
-        };
-      }
-
-      if (existingNames.has(normalizedName)) {
-        return {
-          ...row,
-          status: "duplicate" as ImportStatus,
-          message: "Team already exists in Appwrite.",
         };
       }
 
@@ -516,18 +478,8 @@ export default function ImportPage() {
       country: string;
       imageUrl: string;
       active: string;
-    }>,
-    players: CmsPlayer[]
+    }>
   ) {
-    const existingKeys = new Set(
-      players.map((player) =>
-        [
-          normalizeText(player.name || ""),
-          normalizeText(player.teamName || ""),
-          normalizeText(player.school || ""),
-        ].join("|")
-      )
-    );
     const seenKeys = new Set<string>();
 
     return parsedRows.map((row) => {
@@ -577,14 +529,6 @@ export default function ImportPage() {
         };
       }
 
-      if (existingKeys.has(key)) {
-        return {
-          ...row,
-          status: "duplicate" as ImportStatus,
-          message: "Player already exists in Appwrite.",
-        };
-      }
-
       if (seenKeys.has(key)) {
         return {
           ...row,
@@ -618,19 +562,8 @@ export default function ImportPage() {
       awayScore: string;
       isStreamed: string;
       streamId: string;
-    }>,
-    fixtures: CmsFixture[]
+    }>
   ) {
-    const existingKeys = new Set(
-      fixtures.map((fixture) =>
-        getFixtureDuplicateKey({
-          homeTeam: fixture.homeTeam || "",
-          awayTeam: fixture.awayTeam || "",
-          matchDate: fixture.matchDate || "",
-          competition: fixture.competition || "",
-        })
-      )
-    );
     const seenKeys = new Set<string>();
 
     return parsedRows.map((row) => {
@@ -684,14 +617,6 @@ export default function ImportPage() {
         };
       }
 
-      if (existingKeys.has(key)) {
-        return {
-          ...row,
-          statusResult: "duplicate" as ImportStatus,
-          message: "Fixture already exists in Appwrite.",
-        };
-      }
-
       if (seenKeys.has(key)) {
         return {
           ...row,
@@ -724,19 +649,13 @@ export default function ImportPage() {
 
       if (mode === "teams") {
         const parsedRows = parseTeamsCsv(text);
-        const teams = await loadExistingTeams();
-
-        setTeamRows(validateTeamRows(parsedRows, teams));
+        setTeamRows(validateTeamRows(parsedRows));
       } else if (mode === "players") {
         const parsedRows = parsePlayersCsv(text);
-        const players = await loadExistingPlayers();
-
-        setPlayerRows(validatePlayerRows(parsedRows, players));
+        setPlayerRows(validatePlayerRows(parsedRows));
       } else {
         const parsedRows = parseFixturesCsv(text);
-        const fixtures = await loadExistingFixtures();
-
-        setFixtureRows(validateFixtureRows(parsedRows, fixtures));
+        setFixtureRows(validateFixtureRows(parsedRows));
       }
     } catch (error: any) {
       console.error("CSV parse error:", error);
@@ -755,18 +674,11 @@ export default function ImportPage() {
       setLoading(true);
 
       if (mode === "teams") {
-        const teams = await loadExistingTeams();
-        setTeamRows((currentRows) => validateTeamRows(currentRows, teams));
+        setTeamRows((currentRows) => validateTeamRows(currentRows));
       } else if (mode === "players") {
-        const players = await loadExistingPlayers();
-        setPlayerRows((currentRows) =>
-          validatePlayerRows(currentRows, players)
-        );
+        setPlayerRows((currentRows) => validatePlayerRows(currentRows));
       } else {
-        const fixtures = await loadExistingFixtures();
-        setFixtureRows((currentRows) =>
-          validateFixtureRows(currentRows, fixtures)
-        );
+        setFixtureRows((currentRows) => validateFixtureRows(currentRows));
       }
     } catch (error: any) {
       console.error("Refresh validation error:", error);
@@ -825,7 +737,6 @@ export default function ImportPage() {
         }
       }
 
-      await loadExistingTeams();
       showSuccess("Teams import complete", `Imported ${readyRows.length} team rows.`);
     } finally {
       setImporting(false);
@@ -889,7 +800,6 @@ export default function ImportPage() {
         }
       }
 
-      await loadExistingPlayers();
       showSuccess("Players import complete", `Imported ${readyRows.length} player rows.`);
     } finally {
       setImporting(false);
@@ -956,7 +866,6 @@ export default function ImportPage() {
         }
       }
 
-      await loadExistingFixtures();
       showSuccess("Fixtures import complete", `Imported ${readyRows.length} fixture rows.`);
     } finally {
       setImporting(false);
@@ -1184,6 +1093,7 @@ export default function ImportPage() {
             <div>
               <Link
                 href="/"
+                prefetch={false}
                 className="text-sm font-bold uppercase tracking-[3px] text-cyan-600"
               >
                 ← Dashboard
@@ -1192,7 +1102,7 @@ export default function ImportPage() {
               <h1 className="mt-2 text-4xl font-bold">Bulk Import</h1>
 
               <p className="mt-2 text-slate-500">
-                Upload CSV files and import CMS content safely.
+                Upload CSV files and import CMS content safely. Validation runs locally first, so opening this page does not read Appwrite collections.
               </p>
             </div>
 

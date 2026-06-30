@@ -1,5 +1,112 @@
 import { config, databases, ID, Query, storage } from "./appwrite";
 
+
+const CMS_DEFAULT_PAGE_SIZE = 25;
+const CMS_TEAMS_PAGE_SIZE = 50;
+
+const CMS_EVENT_LIST_SELECT = [
+  "$id",
+  "$createdAt",
+  "$updatedAt",
+  "title",
+  "status",
+  "homeTeam",
+  "awayTeam",
+  "matchDate",
+  "venue",
+  "thumbnail",
+  "competition",
+  "sport",
+  "isFeatured",
+  "vodType",
+  "fixturesId",
+  "searchText",
+];
+
+const CMS_FIXTURE_LIST_SELECT = [
+  "$id",
+  "$createdAt",
+  "$updatedAt",
+  "homeTeam",
+  "awayTeam",
+  "status",
+  "matchDate",
+  "venue",
+  "competition",
+  "communityName",
+  "sport",
+  "homeScore",
+  "awayScore",
+  "isStreamed",
+  "streamId",
+  "searchText",
+];
+
+const CMS_TEAM_LIST_SELECT = ["$id", "name", "shortName", "logoUrl"];
+
+const CMS_PLAYER_LIST_SELECT = [
+  "$id",
+  "name",
+  "school",
+  "teamName",
+  "sport",
+  "position",
+  "number",
+  "dateOfBirth",
+  "age",
+  "country",
+  "imageUrl",
+  "active",
+  "searchText",
+];
+
+const CMS_COMMUNITY_POST_LIST_SELECT = [
+  "$id",
+  "kind",
+  "source",
+  "handle",
+  "title",
+  "question",
+  "tag",
+  "postImageUrl",
+  "votesCount",
+  "selectedOptionId",
+  "createdBy",
+  "sortOrder",
+  "publishedAt",
+  "isActive",
+  "reactionsCount",
+  "searchText",
+];
+
+const CMS_AUDIT_LOG_LIST_SELECT = [
+  "$id",
+  "$createdAt",
+  "action",
+  "entityType",
+  "entityId",
+  "entityTitle",
+  "message",
+  "actor",
+  "createdAt",
+  "metadata",
+];
+
+const CMS_CHAT_LIST_SELECT = [
+  "$id",
+  "$createdAt",
+  "$updatedAt",
+  "fixtureId",
+  "userId",
+  "userName",
+  "message",
+  "replyToMessageId",
+  "replyToUserName",
+  "replyToMessage",
+  "reactions",
+  "isHidden",
+];
+
 export type EventStatus =
   | "upcoming"
   | "live"
@@ -321,21 +428,8 @@ export function normalizeDateTimeForInput(value?: string) {
 }
 
 export async function getCmsTeams() {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.teamsCollectionId,
-    [Query.limit(500)]
-  );
-
-  return result.documents
-    .map((team: any) => ({
-      $id: team.$id,
-      name: team.name || "",
-      shortName: team.shortName || "",
-      logoUrl: team.logoUrl || "",
-    }))
-    .filter((team) => team.name)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const page = await getCmsTeamsPage();
+  return page.documents;
 }
 
 export async function getCmsTeamById(id: string) {
@@ -406,29 +500,8 @@ export async function deleteCmsTeam(id: string) {
 }
 
 export async function getCmsPlayers() {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.playersCollectionId,
-    [Query.limit(500)]
-  );
-
-  return result.documents
-    .map((player: any) => ({
-      $id: player.$id,
-      name: player.name || "",
-      school: player.school || "",
-      teamName: player.teamName || "",
-      sport: player.sport || "",
-      position: player.position || "",
-      number: typeof player.number === "number" ? player.number : 0,
-      dateOfBirth: player.dateOfBirth || "",
-      age: typeof player.age === "number" ? player.age : 0,
-      country: player.country || "",
-      imageUrl: player.imageUrl || "",
-      active: Boolean(player.active),
-      searchText: player.searchText || "",
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const page = await getCmsPlayersPage();
+  return page.documents;
 }
 
 export async function getCmsPlayerById(id: string) {
@@ -495,13 +568,48 @@ export async function deleteCmsPlayer(id: string) {
 }
 
 export async function getCmsFixtures() {
+  const page = await getCmsFixturesPage({
+    limit: CMS_DEFAULT_PAGE_SIZE,
+    status: "upcoming",
+  });
+
+  return page.documents;
+}
+
+export async function getCmsFixtureById(id: string) {
+  return databases.getDocument(
+    config.databaseId,
+    config.fixturesCollectionId,
+    id
+  );
+}
+
+export async function findDuplicateCmsFixture(input: CreateFixtureInput) {
+  const newFixture = buildFixtureData(input);
+
+  /*
+   * Optimized duplicate check:
+   * Do not fetch the latest 500 fixtures. Narrow the search in Appwrite first,
+   * then do the minute-level date comparison locally.
+   * Recommended Appwrite indexes:
+   * - fixtures.homeTeam
+   * - fixtures.awayTeam
+   * - fixtures.competition
+   * - fixtures.matchDate
+   */
   const result = await databases.listDocuments(
     config.databaseId,
     config.fixturesCollectionId,
-    [Query.orderDesc("matchDate"), Query.limit(500)]
+    [
+      Query.equal("homeTeam", newFixture.homeTeam),
+      Query.equal("awayTeam", newFixture.awayTeam),
+      Query.equal("competition", newFixture.competition),
+      Query.limit(25),
+      Query.select(CMS_FIXTURE_LIST_SELECT),
+    ]
   );
 
-  return result.documents.map((fixture: any) => ({
+  const fixtures = result.documents.map((fixture: any) => ({
     $id: fixture.$id,
     homeTeam: fixture.homeTeam || "",
     awayTeam: fixture.awayTeam || "",
@@ -517,23 +625,6 @@ export async function getCmsFixtures() {
     streamId: fixture.streamId || "",
     searchText: fixture.searchText || "",
   }));
-}
-
-export async function getCmsFixtureById(id: string) {
-  return databases.getDocument(
-    config.databaseId,
-    config.fixturesCollectionId,
-    id
-  );
-}
-
-export async function findDuplicateCmsFixture(input: CreateFixtureInput) {
-  const newFixture = buildFixtureData(input);
-
-  // No Appwrite field filters are used here on purpose.
-  // This avoids needing extra Appwrite indexes and still prevents duplicates
-  // for the current CMS scale by checking the latest 500 fixtures client-side.
-  const fixtures = await getCmsFixtures();
 
   return fixtures.find((fixture) =>
     isSameFixtureIdentity(fixture, {
@@ -760,14 +851,66 @@ export async function scoreCmsPredictionsForFixture(fixtureId: string) {
   };
 }
 
-export async function getCmsEvents() {
+export type CmsEventsPageResult = {
+  documents: any[];
+  total: number;
+  nextCursor: string | null;
+  previousCursor: string | null;
+  hasNextPage: boolean;
+};
+
+export async function getCmsEventsPage(options?: {
+  cursor?: string;
+  direction?: "next" | "previous";
+  status?: EventStatus | "all";
+  search?: string;
+  limit?: number;
+}) {
+  const limit = options?.limit || CMS_DEFAULT_PAGE_SIZE;
+  const search = String(options?.search || "").trim().toLowerCase();
+
+  const queries = [
+    Query.orderDesc("$createdAt"),
+    Query.limit(limit),
+    Query.select(CMS_EVENT_LIST_SELECT),
+  ];
+
+  if (options?.status && options.status !== "all") {
+    queries.push(Query.equal("status", options.status));
+  }
+
+  // Search intentionally disabled for community posts.
+  // Appwrite Query.search requires a fulltext index and can crash the CMS
+  // if the index is missing or still building. Keep list reads paginated only.
+
+  if (options?.cursor && options.direction === "next") {
+    queries.push(Query.cursorAfter(options.cursor));
+  }
+
+  if (options?.cursor && options.direction === "previous") {
+    queries.push(Query.cursorBefore(options.cursor));
+  }
+
   const result = await databases.listDocuments(
     config.databaseId,
     config.streamsCollectionId,
-    [Query.orderDesc("$createdAt"), Query.limit(100)]
+    queries
   );
 
-  return result.documents;
+  return {
+    documents: result.documents,
+    total: result.total,
+    nextCursor: result.documents.length
+      ? result.documents[result.documents.length - 1].$id
+      : null,
+    previousCursor: result.documents.length ? result.documents[0].$id : null,
+    hasNextPage: result.documents.length === limit,
+  } as CmsEventsPageResult;
+}
+
+export async function getCmsEvents() {
+  const page = await getCmsEventsPage({ limit: CMS_DEFAULT_PAGE_SIZE });
+  return page.documents;
 }
 
 export async function getCmsEventById(id: string) {
@@ -911,7 +1054,7 @@ export async function deleteCmsEventAndFixture(
   const linkedFixtures = await databases.listDocuments(
     config.databaseId,
     config.fixturesCollectionId,
-    [Query.equal("streamId", eventId), Query.limit(100)]
+    [Query.equal("streamId", eventId), Query.limit(25), Query.select(["$id"])]
   );
 
   linkedFixtures.documents.forEach((fixture: any) => {
@@ -963,6 +1106,7 @@ export type CmsCommunityPost = {
   publishedAt?: string;
   isActive?: boolean;
   reactionsCount?: number;
+  searchText?: string;
 };
 
 export type CmsCommunityPostOption = {
@@ -1014,6 +1158,24 @@ function communityDateTimeForInput(value?: string) {
   return local.toISOString().slice(0, 16);
 }
 
+function buildCommunitySearchText(data: Record<string, any>) {
+  return [
+    data.kind,
+    data.source,
+    data.handle,
+    data.title,
+    data.question,
+    data.tag,
+    data.createdBy,
+    data.publishedAt,
+    data.isActive ? "active" : "inactive",
+  ]
+    .filter((value) => value !== undefined && value !== null && value !== "")
+    .map((value) => String(value))
+    .join(" ")
+    .toLowerCase();
+}
+
 function buildCommunityPostCreateData(input: CreateCommunityPostInput) {
   const data: Record<string, any> = {
     kind: input.kind,
@@ -1037,6 +1199,8 @@ function buildCommunityPostCreateData(input: CreateCommunityPostInput) {
     data.postImageUrl = postImageUrl;
   }
 
+  data.searchText = buildCommunitySearchText(data);
+
   return data;
 }
 
@@ -1058,6 +1222,8 @@ function buildCommunityPostUpdateData(input: CreateCommunityPostInput) {
   if (postImageUrl) {
     data.postImageUrl = postImageUrl;
   }
+
+  data.searchText = buildCommunitySearchText(data);
 
   return data;
 }
@@ -1105,30 +1271,8 @@ export function normalizeCommunityPublishedAtForInput(value?: string) {
 }
 
 export async function getCmsCommunityPosts() {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.communityPostsCollectionId,
-    [Query.orderAsc("sortOrder"), Query.orderDesc("publishedAt"), Query.limit(500)]
-  );
-
-  return result.documents.map((post: any) => ({
-    $id: post.$id,
-    kind: post.kind || "image",
-    source: post.source || "",
-    handle: post.handle || "",
-    title: post.title || "",
-    question: post.question || "",
-    tag: post.tag || "",
-    postImageUrl: post.postImageUrl || "",
-    votesCount: typeof post.votesCount === "number" ? post.votesCount : 0,
-    selectedOptionId: post.selectedOptionId || "",
-    createdBy: post.createdBy || "",
-    sortOrder: typeof post.sortOrder === "number" ? post.sortOrder : 999,
-    publishedAt: post.publishedAt || "",
-    isActive: Boolean(post.isActive),
-    reactionsCount:
-      typeof post.reactionsCount === "number" ? post.reactionsCount : 0,
-  })) as CmsCommunityPost[];
+  const page = await getCmsCommunityPostsPage();
+  return page.documents;
 }
 
 export async function getCmsCommunityPostById(id: string) {
@@ -1143,7 +1287,21 @@ export async function getCmsCommunityOptionsForPost(postId: string) {
   const result = await databases.listDocuments(
     config.databaseId,
     config.communityPostOptionsCollectionId,
-    [Query.equal("postId", postId), Query.orderAsc("sortOrder"), Query.limit(100)]
+    [
+      Query.equal("postId", postId),
+      Query.orderAsc("sortOrder"),
+      Query.limit(CMS_DEFAULT_PAGE_SIZE),
+      Query.select([
+        "$id",
+        "postId",
+        "label",
+        "imageUrl",
+        "votesCount",
+        "percentage",
+        "sortOrder",
+        "isActive",
+      ]),
+    ]
   );
 
   return result.documents.map((option: any) => ({
@@ -1369,6 +1527,358 @@ export async function deleteCmsCommunityOption(optionId: string) {
 }
 
 
+/* PAGINATED CMS READS - use these in list pages instead of loading 500 rows */
+
+export type CmsPageResult<T> = {
+  documents: T[];
+  total: number;
+  nextCursor: string | null;
+};
+
+export async function getCmsTeamsPage(cursor?: string) {
+  const queries = [
+    Query.orderAsc("name"),
+    Query.limit(CMS_TEAMS_PAGE_SIZE),
+    Query.select(CMS_TEAM_LIST_SELECT),
+  ];
+
+  if (cursor) {
+    queries.push(Query.cursorAfter(cursor));
+  }
+
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.teamsCollectionId,
+    queries
+  );
+
+  const documents = result.documents
+    .map((team: any) => ({
+      $id: team.$id,
+      name: team.name || "",
+      shortName: team.shortName || "",
+      logoUrl: team.logoUrl || "",
+    }))
+    .filter((team) => team.name);
+
+  return {
+    documents,
+    total: result.total,
+    nextCursor: documents.length ? documents[documents.length - 1].$id : null,
+  } as CmsPageResult<CmsTeam>;
+}
+
+export async function getCmsPlayersPage(cursor?: string) {
+  const queries = [
+    Query.orderAsc("name"),
+    Query.limit(CMS_DEFAULT_PAGE_SIZE),
+    Query.select(CMS_PLAYER_LIST_SELECT),
+  ];
+
+  if (cursor) {
+    queries.push(Query.cursorAfter(cursor));
+  }
+
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.playersCollectionId,
+    queries
+  );
+
+  const documents = result.documents.map((player: any) => ({
+    $id: player.$id,
+    name: player.name || "",
+    school: player.school || "",
+    teamName: player.teamName || "",
+    sport: player.sport || "",
+    position: player.position || "",
+    number: typeof player.number === "number" ? player.number : 0,
+    dateOfBirth: player.dateOfBirth || "",
+    age: typeof player.age === "number" ? player.age : 0,
+    country: player.country || "",
+    imageUrl: player.imageUrl || "",
+    active: Boolean(player.active),
+    searchText: player.searchText || "",
+  }));
+
+  return {
+    documents,
+    total: result.total,
+    nextCursor: documents.length ? documents[documents.length - 1].$id : null,
+  } as CmsPageResult<CmsPlayer>;
+}
+
+export type FixtureDateRange = "all" | "today" | "week" | "future" | "past";
+
+export type CmsFixturesPageResult = {
+  documents: CmsFixture[];
+  total: number;
+  nextCursor: string | null;
+  previousCursor: string | null;
+  hasNextPage: boolean;
+};
+
+function normalizeCmsFixture(fixture: any) {
+  return {
+    $id: fixture.$id,
+    homeTeam: fixture.homeTeam || "",
+    awayTeam: fixture.awayTeam || "",
+    sport: fixture.sport || "",
+    communityName: fixture.communityName || "",
+    competition: fixture.competition || "",
+    venue: fixture.venue || "",
+    matchDate: fixture.matchDate || "",
+    status: fixture.status || "upcoming",
+    homeScore: typeof fixture.homeScore === "number" ? fixture.homeScore : 0,
+    awayScore: typeof fixture.awayScore === "number" ? fixture.awayScore : 0,
+    isStreamed: Boolean(fixture.isStreamed),
+    streamId: fixture.streamId || "",
+    searchText: fixture.searchText || "",
+  } as CmsFixture;
+}
+
+function getFixtureDateRangeQueries(dateRange?: FixtureDateRange) {
+  if (!dateRange || dateRange === "all") {
+    return [] as string[];
+  }
+
+  const now = new Date();
+
+  if (dateRange === "future") {
+    return [Query.greaterThanEqual("matchDate", now.toISOString())];
+  }
+
+  if (dateRange === "past") {
+    return [Query.lessThanEqual("matchDate", now.toISOString())];
+  }
+
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+
+  if (dateRange === "today") {
+    end.setDate(start.getDate() + 1);
+  } else {
+    end.setDate(start.getDate() + 7);
+  }
+
+  return [
+    Query.greaterThanEqual("matchDate", start.toISOString()),
+    Query.lessThan("matchDate", end.toISOString()),
+  ];
+}
+
+export async function getCmsFixturesPage(options?: {
+  cursor?: string;
+  direction?: "next" | "previous";
+  status?: FixtureStatus | "all";
+  dateRange?: FixtureDateRange;
+  search?: string;
+  limit?: number;
+}) {
+  const limit = options?.limit || CMS_DEFAULT_PAGE_SIZE;
+  const search = String(options?.search || "").trim().toLowerCase();
+
+  const queries = [
+    Query.orderDesc("matchDate"),
+    Query.limit(limit),
+    Query.select(CMS_FIXTURE_LIST_SELECT),
+    ...getFixtureDateRangeQueries(options?.dateRange),
+  ];
+
+  if (options?.status && options.status !== "all") {
+    queries.push(Query.equal("status", options.status));
+  }
+
+  if (search.length >= 2) {
+    queries.push(Query.search("searchText", search));
+  }
+
+  if (options?.cursor && options.direction === "next") {
+    queries.push(Query.cursorAfter(options.cursor));
+  }
+
+  if (options?.cursor && options.direction === "previous") {
+    queries.push(Query.cursorBefore(options.cursor));
+  }
+
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.fixturesCollectionId,
+    queries
+  );
+
+  const documents = result.documents.map(normalizeCmsFixture);
+
+  return {
+    documents,
+    total: result.total,
+    nextCursor: documents.length ? documents[documents.length - 1].$id : null,
+    previousCursor: documents.length ? documents[0].$id : null,
+    hasNextPage: documents.length === limit,
+  } as CmsFixturesPageResult;
+}
+
+export type CmsCommunityPostsPageResult = {
+  documents: CmsCommunityPost[];
+  total: number;
+  nextCursor: string | null;
+  previousCursor: string | null;
+  hasNextPage: boolean;
+};
+
+function normalizeCmsCommunityPost(post: any) {
+  return {
+    $id: post.$id,
+    kind: post.kind || "image",
+    source: post.source || "",
+    handle: post.handle || "",
+    title: post.title || "",
+    question: post.question || "",
+    tag: post.tag || "",
+    postImageUrl: post.postImageUrl || "",
+    votesCount: typeof post.votesCount === "number" ? post.votesCount : 0,
+    selectedOptionId: post.selectedOptionId || "",
+    createdBy: post.createdBy || "",
+    sortOrder: typeof post.sortOrder === "number" ? post.sortOrder : 999,
+    publishedAt: post.publishedAt || "",
+    isActive: Boolean(post.isActive),
+    reactionsCount:
+      typeof post.reactionsCount === "number" ? post.reactionsCount : 0,
+    searchText: post.searchText || "",
+  } as CmsCommunityPost;
+}
+
+export async function getCmsCommunityPostsPage(options?: {
+  cursor?: string;
+  direction?: "next" | "previous";
+  kind?: CommunityPostKind | "all";
+  active?: "all" | "active" | "inactive";
+  search?: string;
+  limit?: number;
+}) {
+  const limit = options?.limit || CMS_DEFAULT_PAGE_SIZE;
+  const search = String(options?.search || "").trim().toLowerCase();
+
+  const queries = [
+    Query.orderAsc("sortOrder"),
+    Query.orderDesc("publishedAt"),
+    Query.limit(limit),
+    Query.select(CMS_COMMUNITY_POST_LIST_SELECT),
+  ];
+
+  if (options?.kind && options.kind !== "all") {
+    queries.push(Query.equal("kind", options.kind));
+  }
+
+  if (options?.active === "active") {
+    queries.push(Query.equal("isActive", true));
+  }
+
+  if (options?.active === "inactive") {
+    queries.push(Query.equal("isActive", false));
+  }
+
+  if (search.length >= 2) {
+    queries.push(Query.search("searchText", search));
+  }
+
+  if (options?.cursor && options.direction === "next") {
+    queries.push(Query.cursorAfter(options.cursor));
+  }
+
+  if (options?.cursor && options.direction === "previous") {
+    queries.push(Query.cursorBefore(options.cursor));
+  }
+
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.communityPostsCollectionId,
+    queries
+  );
+
+  const documents = result.documents.map(normalizeCmsCommunityPost);
+
+  return {
+    documents,
+    total: result.total,
+    nextCursor: documents.length ? documents[documents.length - 1].$id : null,
+    previousCursor: documents.length ? documents[0].$id : null,
+    hasNextPage: documents.length === limit,
+  } as CmsCommunityPostsPageResult;
+}
+
+export async function getCmsAuditLogsPage(cursor?: string) {
+  const queries = [
+    Query.orderDesc("createdAt"),
+    Query.limit(CMS_DEFAULT_PAGE_SIZE),
+    Query.select(CMS_AUDIT_LOG_LIST_SELECT),
+  ];
+
+  if (cursor) {
+    queries.push(Query.cursorAfter(cursor));
+  }
+
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.cmsAuditLogsCollectionId,
+    queries
+  );
+
+  const documents = result.documents.map((log: any) => ({
+    $id: log.$id,
+    action: log.action || "system",
+    entityType: log.entityType || "",
+    entityId: log.entityId || "",
+    entityTitle: log.entityTitle || "",
+    message: log.message || "",
+    actor: log.actor || "cms",
+    createdAt: log.createdAt || log.$createdAt || "",
+    metadata: log.metadata || "",
+  })) as CmsAuditLog[];
+
+  return {
+    documents,
+    total: result.total,
+    nextCursor: documents.length ? documents[documents.length - 1].$id : null,
+  } as CmsPageResult<CmsAuditLog>;
+}
+
+export async function getCmsFixtureChatsPage(options?: {
+  cursor?: string;
+  fixtureId?: string;
+}) {
+  const queries = [
+    Query.orderDesc("$createdAt"),
+    Query.limit(CMS_DEFAULT_PAGE_SIZE),
+    Query.select(CMS_CHAT_LIST_SELECT),
+  ];
+
+  if (options?.fixtureId) {
+    queries.push(Query.equal("fixtureId", options.fixtureId));
+  }
+
+  if (options?.cursor) {
+    queries.push(Query.cursorAfter(options.cursor));
+  }
+
+  const result = await databases.listDocuments(
+    config.databaseId,
+    config.fixtureChatsCollectionId,
+    queries
+  );
+
+  const documents = result.documents.map(normalizeCmsFixtureChat);
+
+  return {
+    documents,
+    total: result.total,
+    nextCursor: documents.length ? documents[documents.length - 1].$id : null,
+  } as CmsPageResult<CmsFixtureChat>;
+}
+
+
 /* DASHBOARD ANALYTICS */
 
 export type CmsDashboardAnalytics = {
@@ -1534,7 +2044,14 @@ function normalizeAuditMetadata(metadata?: Record<string, any> | string) {
   }
 }
 
+const ENABLE_AUDIT_LOGS =
+  process.env.NEXT_PUBLIC_CMS_AUDIT_LOGS_ENABLED !== "false";
+
 export async function createCmsAuditLog(input: CreateCmsAuditLogInput) {
+  if (!ENABLE_AUDIT_LOGS) {
+    return null;
+  }
+
   try {
     return await databases.createDocument(
       config.databaseId,
@@ -1562,23 +2079,8 @@ export async function createCmsAuditLog(input: CreateCmsAuditLogInput) {
 }
 
 export async function getCmsAuditLogs() {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.cmsAuditLogsCollectionId,
-    [Query.orderDesc("createdAt"), Query.limit(500)]
-  );
-
-  return result.documents.map((log: any) => ({
-    $id: log.$id,
-    action: log.action || "system",
-    entityType: log.entityType || "",
-    entityId: log.entityId || "",
-    entityTitle: log.entityTitle || "",
-    message: log.message || "",
-    actor: log.actor || "cms",
-    createdAt: log.createdAt || log.$createdAt || "",
-    metadata: log.metadata || "",
-  })) as CmsAuditLog[];
+  const page = await getCmsAuditLogsPage();
+  return page.documents;
 }
 
 export async function deleteCmsAuditLog(id: string) {
@@ -1633,27 +2135,13 @@ function normalizeCmsFixtureChat(chat: any) {
 }
 
 export async function getCmsFixtureChats() {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.fixtureChatsCollectionId,
-    [Query.orderDesc("$createdAt"), Query.limit(500)]
-  );
-
-  return result.documents.map(normalizeCmsFixtureChat);
+  const page = await getCmsFixtureChatsPage();
+  return page.documents;
 }
 
 export async function getCmsFixtureChatsByFixtureId(fixtureId: string) {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.fixtureChatsCollectionId,
-    [
-      Query.equal("fixtureId", fixtureId),
-      Query.orderDesc("$createdAt"),
-      Query.limit(500),
-    ]
-  );
-
-  return result.documents.map(normalizeCmsFixtureChat);
+  const page = await getCmsFixtureChatsPage({ fixtureId });
+  return page.documents;
 }
 
 export async function updateCmsFixtureChat(

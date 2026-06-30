@@ -49,6 +49,19 @@ function Field({
   );
 }
 
+function isValidHttpUrl(value: string) {
+  if (!value.trim()) {
+    return true;
+  }
+
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export default function CreateCommunityPostPage() {
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
@@ -92,6 +105,20 @@ export default function CreateCommunityPostPage() {
       return;
     }
 
+    if (!isValidHttpUrl(form.postImageUrl)) {
+      alert("Post Image URL must be a valid http/https URL. Use the upload button or clear the field.");
+      return;
+    }
+
+    const invalidOptionImage = options.find(
+      (option) => option.imageUrl.trim() && !isValidHttpUrl(option.imageUrl)
+    );
+
+    if (invalidOptionImage) {
+      alert("One of the option image URLs is invalid. Use the upload button or clear that field.");
+      return;
+    }
+
     if (needsOptions && options.filter((option) => option.label.trim()).length < 2) {
       alert("Polls and debates need at least 2 options.");
       return;
@@ -103,7 +130,12 @@ export default function CreateCommunityPostPage() {
       router.push("/community");
     } catch (error: any) {
       console.error("Create community post error:", error);
-      alert(error?.message || "Could not create community post.");
+      alert(
+        error?.message ||
+          error?.response?.message ||
+          JSON.stringify(error) ||
+          "Could not create community post."
+      );
     } finally {
       setSaving(false);
     }
@@ -114,7 +146,11 @@ export default function CreateCommunityPostPage() {
       <main className="min-h-screen bg-[#f8fafc] text-[#29496d]">
         <section className="border-b border-slate-200 bg-white">
           <div className="mx-auto max-w-5xl px-8 py-6">
-            <Link href="/community" className="text-sm font-bold uppercase tracking-[3px] text-cyan-600">
+            <Link
+              href="/community"
+              prefetch={false}
+              className="text-sm font-bold uppercase tracking-[3px] text-cyan-600"
+            >
               ← Community
             </Link>
             <h1 className="mt-2 text-4xl font-bold">Create Community Post</h1>
@@ -147,7 +183,12 @@ export default function CreateCommunityPostPage() {
               <Field label="Handle" value={form.handle} onChange={(value) => updateField("handle", value)} />
               <Field label="Title" value={form.title} onChange={(value) => updateField("title", value)} />
               <Field label="Question" value={form.question} onChange={(value) => updateField("question", value)} />
-              <Field label="Post Image URL" value={form.postImageUrl} onChange={(value) => updateField("postImageUrl", value)} />
+              <Field
+                label="Post Image URL"
+                value={form.postImageUrl}
+                onChange={(value) => updateField("postImageUrl", value)}
+                placeholder="This fills automatically after upload"
+              />
               <div className="md:col-span-2">
                 <CmsImageUpload
                   label="Upload Post Image"
@@ -192,6 +233,7 @@ export default function CreateCommunityPostPage() {
                         label="Image URL"
                         value={option.imageUrl}
                         onChange={(value) => updateOption(index, "imageUrl", value)}
+                        placeholder="This fills automatically after upload"
                       />
                       <div className="md:col-span-3">
                         <CmsImageUpload
@@ -223,7 +265,7 @@ export default function CreateCommunityPostPage() {
           ) : null}
 
           <div className="flex justify-end gap-3">
-            <Link href="/community" className="rounded border border-slate-200 bg-white px-7 py-4 text-lg font-bold text-[#29496d]">
+            <Link href="/community" prefetch={false} className="rounded border border-slate-200 bg-white px-7 py-4 text-lg font-bold text-[#29496d]">
               Cancel
             </Link>
             <button

@@ -1,5 +1,5 @@
 "use client";
-
+import { databases, storage, account } from "@/lib/appwrite";
 import CmsAuthGuard from "@/components/cms-auth-guard";
 import {
   calculatePredictionPoints,

@@ -1845,13 +1845,26 @@ export async function getCmsAuditLogsPage(cursor?: string) {
   } as CmsPageResult<CmsAuditLog>;
 }
 
+export type CmsFixtureChatsPageResult = {
+  documents: CmsFixtureChat[];
+  total: number;
+  nextCursor: string | null;
+  previousCursor: string | null;
+  hasNextPage: boolean;
+};
+
 export async function getCmsFixtureChatsPage(options?: {
   cursor?: string;
+  direction?: "next" | "previous";
   fixtureId?: string;
+  visibility?: "all" | "visible" | "hidden";
+  limit?: number;
 }) {
+  const limit = options?.limit || CMS_DEFAULT_PAGE_SIZE;
+
   const queries = [
     Query.orderDesc("$createdAt"),
-    Query.limit(CMS_DEFAULT_PAGE_SIZE),
+    Query.limit(limit),
     Query.select(CMS_CHAT_LIST_SELECT),
   ];
 
@@ -1859,8 +1872,20 @@ export async function getCmsFixtureChatsPage(options?: {
     queries.push(Query.equal("fixtureId", options.fixtureId));
   }
 
-  if (options?.cursor) {
+  if (options?.visibility === "visible") {
+    queries.push(Query.equal("isHidden", false));
+  }
+
+  if (options?.visibility === "hidden") {
+    queries.push(Query.equal("isHidden", true));
+  }
+
+  if (options?.cursor && options.direction === "next") {
     queries.push(Query.cursorAfter(options.cursor));
+  }
+
+  if (options?.cursor && options.direction === "previous") {
+    queries.push(Query.cursorBefore(options.cursor));
   }
 
   const result = await databases.listDocuments(
@@ -1875,7 +1900,9 @@ export async function getCmsFixtureChatsPage(options?: {
     documents,
     total: result.total,
     nextCursor: documents.length ? documents[documents.length - 1].$id : null,
-  } as CmsPageResult<CmsFixtureChat>;
+    previousCursor: documents.length ? documents[0].$id : null,
+    hasNextPage: documents.length === limit,
+  } as CmsFixtureChatsPageResult;
 }
 
 

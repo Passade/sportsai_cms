@@ -157,6 +157,14 @@ export default function DashboardPage() {
               href="/ads"
               badge="Marketing"
             />
+
+
+             <DashboardCard
+              title="Sports Tier Cards"
+              description="Manage sports tier cards"
+              href="/sports-tier-cards"
+              badge="Marketing"
+            />
  
           </div>
         </section>

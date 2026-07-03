@@ -106,10 +106,7 @@ export default function DashboardPage() {
               href="/fixtures"
               badge="Matches"
             />
-                  /*
-  I removed Community Posts from the dashboard because it was not very useful and took too many requests to load. 
-*/     
-
+   
          
 
             <DashboardCard
@@ -120,16 +117,7 @@ export default function DashboardPage() {
             />
 
          
-                  /*
-  I removed Media Library from the dashboard because it was not very useful and took too many requests to load.  
-*/     
 
-                  /*
-  I removed Bulk Uploads from the dashboard cause it took to many requests to load and was not very useful. 
-            /*
-
-  I removed the Teams card from the dashboard because it was redundant with the Players card, and the Teams functionality is already accessible through the Players section. This helps streamline the dashboard and reduce clutter for users.
-*/
 
             <DashboardCard
               title="Players"
@@ -159,3 +147,18 @@ export default function DashboardPage() {
     </CmsAuthGuard>
   );
 }
+
+                  /*
+  I removed Media Library from the dashboard because it was not very useful and took too many requests to load.  
+*/     
+
+                  /*
+  I removed Bulk Uploads from the dashboard cause it took to many requests to load and was not very useful. 
+            /*
+
+  I removed the Teams card from the dashboard because it was redundant with the Players card, and the Teams functionality is already accessible through the Players section. This helps streamline the dashboard and reduce clutter for users.
+*/
+
+                /*
+  I removed Community Posts from the dashboard because it was not very useful and took too many requests to load. 
+*/     

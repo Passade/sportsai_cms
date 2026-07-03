@@ -46,6 +46,48 @@ function TextField({
   );
 }
 
+
+function DatalistTextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  datalistId,
+  options,
+}: {
+  label?: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  datalistId: string;
+  options: string[];
+}) {
+  return (
+    <label className="block">
+      {label ? (
+        <span className="mb-1 block text-sm font-semibold text-[#8ba0b6]">
+          {label}
+        </span>
+      ) : null}
+
+      <input
+        type="text"
+        list={datalistId}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="h-14 w-full border border-slate-300 bg-white px-5 text-lg text-[#29496d] outline-none placeholder:text-[#9fb0c2] focus:border-cyan-500"
+      />
+
+      <datalist id={datalistId}>
+        {options.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+    </label>
+  );
+}
+
 function TeamNameField({
   label,
   value,
@@ -138,6 +180,15 @@ function Fieldset({
     </fieldset>
   );
 }
+
+
+const GAME_TYPE_OPTIONS = [
+  "Derby Day",
+  "League",
+  "Cup",
+  "Friendly",
+  "Tournament",
+];
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -327,17 +378,13 @@ export default function CreateEventPage() {
               </div>
 
               <div className="col-span-6">
-                <SelectField
+                <DatalistTextField
+                  label="Game Type"
                   value={competition}
                   onChange={setCompetition}
-                  options={[
-                    { label: "Game Type", value: "" },
-                    { label: "Derby Day", value: "Derby Day" },
-                    { label: "League", value: "League" },
-                    { label: "Cup", value: "Cup" },
-                    { label: "Friendly", value: "Friendly" },
-                    { label: "Tournament", value: "Tournament" },
-                  ]}
+                  placeholder="Type or choose game type"
+                  datalistId="create-game-type-options"
+                  options={GAME_TYPE_OPTIONS}
                 />
               </div>
 

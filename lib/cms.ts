@@ -427,9 +427,48 @@ export function normalizeDateTimeForInput(value?: string) {
   return toDateTimeLocalInputValue(value);
 }
 
+let cmsTeamsCache: {
+  teams: CmsTeam[];
+  cachedAt: number;
+} | null = null;
+
+let cmsTeamsInFlight: Promise<CmsTeam[]> | null = null;
+
+const CMS_TEAMS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+export function clearCmsTeamsCache() {
+  cmsTeamsCache = null;
+  cmsTeamsInFlight = null;
+}
+
 export async function getCmsTeams() {
-  const page = await getCmsTeamsPage();
-  return page.documents;
+  const now = Date.now();
+
+  if (
+    cmsTeamsCache &&
+    now - cmsTeamsCache.cachedAt < CMS_TEAMS_CACHE_TTL_MS
+  ) {
+    return cmsTeamsCache.teams;
+  }
+
+  if (cmsTeamsInFlight) {
+    return cmsTeamsInFlight;
+  }
+
+  cmsTeamsInFlight = getCmsTeamsPage()
+    .then((page) => {
+      cmsTeamsCache = {
+        teams: page.documents,
+        cachedAt: Date.now(),
+      };
+
+      return page.documents;
+    })
+    .finally(() => {
+      cmsTeamsInFlight = null;
+    });
+
+  return cmsTeamsInFlight;
 }
 
 export async function getCmsTeamById(id: string) {
@@ -449,6 +488,8 @@ export async function createCmsTeam(input: CreateTeamInput) {
     ID.unique(),
     data
   );
+
+  clearCmsTeamsCache();
 
   await createCmsAuditLog({
     action: "create",
@@ -475,6 +516,8 @@ export async function updateCmsTeam(id: string, input: CreateTeamInput) {
     data
   );
 
+  clearCmsTeamsCache();
+
   await createCmsAuditLog({
     action: "update",
     entityType: "team",
@@ -488,6 +531,8 @@ export async function updateCmsTeam(id: string, input: CreateTeamInput) {
 
 export async function deleteCmsTeam(id: string) {
   await databases.deleteDocument(config.databaseId, config.teamsCollectionId, id);
+
+  clearCmsTeamsCache();
 
   await createCmsAuditLog({
     action: "delete",

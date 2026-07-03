@@ -18,7 +18,7 @@ function getInitialForm(ad?: CmsAdBanner): CreateAdBannerInput {
   return {
     title: ad?.title || "",
     imageUrl: ad?.imageUrl || "",
-    linkType: ad?.linkType || "",
+    linkType: ad?.linkType || "external",
     linkId: ad?.linkId || "",
     sortOrder: String(ad?.sortOrder ?? 999),
     isActive: Boolean(ad?.isActive),
@@ -108,10 +108,19 @@ export default function EditAdPage() {
       return;
     }
 
+    if (form.linkType.trim().toLowerCase() === "external" && !form.linkId.trim()) {
+      alert("Add the website URL in Link URL / Internal ID.");
+      return;
+    }
+
     try {
       setSaving(true);
 
-      await updateCmsAdBanner(params.id, form);
+      await updateCmsAdBanner(params.id, {
+        ...form,
+        linkType: form.linkType.trim(),
+        linkId: form.linkId.trim(),
+      });
 
       router.push("/ads");
     } catch (error: any) {
@@ -186,6 +195,7 @@ export default function EditAdPage() {
                     label="Title"
                     value={form.title}
                     onChange={(value) => updateField("title", value)}
+                    placeholder="Example: Derby Day sponsor"
                   />
 
                   <Field
@@ -199,19 +209,26 @@ export default function EditAdPage() {
                     label="Link Type"
                     value={form.linkType}
                     onChange={(value) => updateField("linkType", value)}
+                    placeholder="Use external for a webpage"
                   />
 
                   <Field
-                    label="Link ID"
+                    label="Link URL / Internal ID"
                     value={form.linkId}
                     onChange={(value) => updateField("linkId", value)}
+                    placeholder="Example: https://sponsorwebsite.com"
                   />
+
+                  <div className="md:col-span-2 rounded-2xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
+                    For webpage adverts, use <b>Link Type:</b> external and put the full website URL in <b>Link URL / Internal ID</b>.
+                  </div>
 
                   <div className="md:col-span-2">
                     <Field
                       label="Image URL"
                       value={form.imageUrl}
                       onChange={(value) => updateField("imageUrl", value)}
+                      placeholder="Upload below or paste a URL"
                     />
                   </div>
 

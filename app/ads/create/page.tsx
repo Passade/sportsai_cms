@@ -3,10 +3,7 @@
 import CmsAuthGuard from "@/components/cms-auth-guard";
 import CmsImageUpload from "@/components/cms-image-upload";
 import CmsLogoutButton from "@/components/cms-logout-button";
-import {
-  CreateAdBannerInput,
-  createCmsAdBanner,
-} from "@/lib/ads";
+import { CreateAdBannerInput, createCmsAdBanner } from "@/lib/ads";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -14,7 +11,7 @@ import { useState } from "react";
 const initialForm: CreateAdBannerInput = {
   title: "",
   imageUrl: "",
-  linkType: "",
+  linkType: "external",
   linkId: "",
   sortOrder: "999",
   isActive: true,
@@ -75,10 +72,19 @@ export default function CreateAdPage() {
       return;
     }
 
+    if (form.linkType.trim().toLowerCase() === "external" && !form.linkId.trim()) {
+      alert("Add the website URL in Link URL / Internal ID.");
+      return;
+    }
+
     try {
       setSaving(true);
 
-      await createCmsAdBanner(form);
+      await createCmsAdBanner({
+        ...form,
+        linkType: form.linkType.trim(),
+        linkId: form.linkId.trim(),
+      });
 
       router.push("/ads");
     } catch (error: any) {
@@ -142,15 +148,19 @@ export default function CreateAdPage() {
                 label="Link Type"
                 value={form.linkType}
                 onChange={(value) => updateField("linkType", value)}
-                placeholder="Example: fixture, team, external"
+                placeholder="Use external for a webpage"
               />
 
               <Field
-                label="Link ID"
+                label="Link URL / Internal ID"
                 value={form.linkId}
                 onChange={(value) => updateField("linkId", value)}
-                placeholder="Example: fixture ID, team ID, or URL slug"
+                placeholder="Example: https://sponsorwebsite.com"
               />
+
+              <div className="md:col-span-2 rounded-2xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
+                For webpage adverts, use <b>Link Type:</b> external and put the full website URL in <b>Link URL / Internal ID</b>.
+              </div>
 
               <div className="md:col-span-2">
                 <Field

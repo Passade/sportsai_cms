@@ -1,16 +1,9 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
-import {
-  CmsTeam,
-  deleteCmsPlayer,
-  getCmsPlayerById,
-  getCmsTeams,
-  normalizeDateForInput,
-  updateCmsPlayer,
-} from "@/lib/cms";
+import { CmsTeam, createCmsPlayer, getCmsTeams } from "@/lib/cms";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const initialForm = {
@@ -23,7 +16,6 @@ const initialForm = {
   dateOfBirth: "",
   age: "0",
   country: "",
-  imageUrl: "",
   active: true,
 };
 
@@ -78,12 +70,12 @@ function TeamNameField({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        list="player-edit-team-options"
+        list="player-create-team-options"
         placeholder="Start typing a team name..."
         className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
       />
 
-      <datalist id="player-edit-team-options">
+      <datalist id="player-create-team-options">
         {teams.map((team) => (
           <option key={team.$id} value={team.name || ""} />
         ))}
@@ -92,60 +84,35 @@ function TeamNameField({
   );
 }
 
-export default function EditPlayerPage() {
-  const params = useParams<{ id: string }>();
+export default function CreatePlayerPage() {
   const router = useRouter();
-
   const [form, setForm] = useState(initialForm);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [teams, setTeams] = useState<CmsTeam[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadData() {
+    async function loadTeams() {
       try {
-        setLoading(true);
         setTeamsLoading(true);
-
-        const [player, teamList] = await Promise.all([
-          getCmsPlayerById(params.id),
-          getCmsTeams(),
-        ]);
-
-        setTeams(teamList);
-
-        setForm({
-          name: String(player.name || ""),
-          school: String(player.school || ""),
-          teamName: String(player.teamName || ""),
-          sport: String(player.sport || ""),
-          position: String(player.position || ""),
-          number: String(player.number ?? 0),
-          dateOfBirth: normalizeDateForInput(String(player.dateOfBirth || "")),
-          age: String(player.age ?? 0),
-          country: String(player.country || ""),
-          imageUrl: String(player.imageUrl || ""),
-          active: Boolean(player.active),
-        });
+        const data = await getCmsTeams();
+        setTeams(data);
       } catch (error: any) {
-        console.error("Load player error:", error);
+        console.error("Teams load error:", error);
 
         alert(
           error?.message ||
             error?.response?.message ||
             JSON.stringify(error) ||
-            "Could not load player."
+            "Could not load teams from Appwrite."
         );
       } finally {
-        setLoading(false);
         setTeamsLoading(false);
       }
     }
 
-    loadData();
-  }, [params.id]);
+    loadTeams();
+  }, []);
 
   function updateField(key: keyof typeof initialForm, value: string | boolean) {
     setForm((current) => ({
@@ -164,57 +131,20 @@ export default function EditPlayerPage() {
 
     try {
       setSaving(true);
-      await updateCmsPlayer(params.id, form);
+      await createCmsPlayer(form);
       router.push("/players");
     } catch (error: any) {
-      console.error("Update player error:", error);
+      console.error("Create player error:", error);
 
       alert(
         error?.message ||
           error?.response?.message ||
           JSON.stringify(error) ||
-          "Could not update player."
+          "Could not create player."
       );
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handleDelete() {
-    const confirmed = window.confirm(
-      "Delete this player? This cannot be undone."
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      await deleteCmsPlayer(params.id);
-      router.push("/players");
-    } catch (error: any) {
-      console.error("Delete player error:", error);
-
-      alert(
-        error?.message ||
-          error?.response?.message ||
-          JSON.stringify(error) ||
-          "Could not delete player."
-      );
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <CmsAuthGuard>
-        <main className="min-h-screen bg-[#f8fafc] px-8 py-10 text-[#29496d]">
-          Loading player...
-        </main>
-      </CmsAuthGuard>
-    );
   }
 
   return (
@@ -230,17 +160,8 @@ export default function EditPlayerPage() {
                 ← Players
               </Link>
 
-              <h1 className="mt-2 text-4xl font-bold">Edit Player</h1>
+              <h1 className="mt-2 text-4xl font-bold">Create Player</h1>
             </div>
-
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="rounded border border-red-200 bg-white px-5 py-3 font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {deleting ? "Deleting..." : "Delete Player"}
-            </button>
           </div>
         </section>
 
@@ -249,7 +170,14 @@ export default function EditPlayerPage() {
           className="mx-auto grid max-w-5xl gap-6 px-8 py-10"
         >
           <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-[#29496d]">Player Details</h2>
+            <h2 className="text-2xl font-bold text-[#29496d]">
+              Player Details
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Player images are disabled in the CMS to reduce bandwidth and
+              avoid extra image requests.
+            </p>
 
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               <Field
@@ -316,7 +244,6 @@ export default function EditPlayerPage() {
                 onChange={(value) => updateField("country", value)}
                 placeholder="Country"
               />
-
             </div>
 
             <label className="mt-6 flex items-center gap-3">
@@ -329,7 +256,6 @@ export default function EditPlayerPage() {
 
               <span className="font-bold text-[#29496d]">Active player</span>
             </label>
-
           </div>
 
           <div className="flex justify-end gap-3">
@@ -345,7 +271,7 @@ export default function EditPlayerPage() {
               disabled={saving}
               className="rounded bg-cyan-500 px-7 py-4 text-lg font-bold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Save Player"}
+              {saving ? "Saving..." : "Create Player"}
             </button>
           </div>
         </form>

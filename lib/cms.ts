@@ -55,7 +55,21 @@ const CMS_PLAYER_LIST_SELECT = [
   "dateOfBirth",
   "age",
   "country",
-  "imageUrl",
+  "active",
+  "searchText",
+];
+
+const CMS_PLAYER_DETAIL_SELECT = [
+  "$id",
+  "name",
+  "school",
+  "teamName",
+  "sport",
+  "position",
+  "number",
+  "dateOfBirth",
+  "age",
+  "country",
   "active",
   "searchText",
 ];
@@ -149,7 +163,6 @@ export type CmsPlayer = {
   dateOfBirth?: string;
   age?: number;
   country?: string;
-  imageUrl?: string;
   active?: boolean;
   searchText?: string;
 };
@@ -164,7 +177,6 @@ export type CreatePlayerInput = {
   dateOfBirth: string;
   age: string;
   country: string;
-  imageUrl: string;
   active: boolean;
 };
 
@@ -384,7 +396,6 @@ function buildPlayerData(input: CreatePlayerInput) {
     number: toInteger(input.number),
     age: toInteger(input.age),
     country: input.country.trim(),
-    imageUrl: input.imageUrl.trim(),
     active: input.active,
   };
 
@@ -553,7 +564,8 @@ export async function getCmsPlayerById(id: string) {
   return databases.getDocument(
     config.databaseId,
     config.playersCollectionId,
-    id
+    id,
+    [Query.select(CMS_PLAYER_DETAIL_SELECT)]
   );
 }
 
@@ -1641,7 +1653,6 @@ export async function getCmsPlayersPage(cursor?: string) {
     dateOfBirth: player.dateOfBirth || "",
     age: typeof player.age === "number" ? player.age : 0,
     country: player.country || "",
-    imageUrl: player.imageUrl || "",
     active: Boolean(player.active),
     searchText: player.searchText || "",
   }));

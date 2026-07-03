@@ -31,21 +31,6 @@ function getPlayerInitials(name?: string) {
   return `${words[0].slice(0, 1)}${words[1].slice(0, 1)}`.toUpperCase();
 }
 
-function getSafeImageUrl(value?: string) {
-  const url = String(value || "").trim();
-
-  if (!url) {
-    return "";
-  }
-
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? url : "";
-  } catch {
-    return "";
-  }
-}
-
 export default function PlayersPage() {
   const [players, setPlayers] = useState<CmsPlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,8 +80,6 @@ export default function PlayersPage() {
       return players;
     }
 
-    // Local search only. This searches the currently loaded 25 players and does not
-    // trigger extra Appwrite reads or require a fulltext searchText index.
     return players.filter((player) => {
       return [
         player.name,
@@ -179,7 +162,8 @@ export default function PlayersPage() {
               <h1 className="mt-2 text-4xl font-bold">Players</h1>
 
               <p className="mt-2 text-slate-500">
-                Manage player profiles used in SportsAI.
+                Manage player profiles used in SportsAI. Player images are
+                disabled to reduce bandwidth and image requests.
               </p>
             </div>
 
@@ -244,70 +228,56 @@ export default function PlayersPage() {
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {visiblePlayers.map((player) => {
-                const imageUrl = getSafeImageUrl(player.imageUrl);
-
-                return (
-                  <Link
-                    key={player.$id}
-                    href={`/players/${player.$id}`}
-                    prefetch={false}
-                    className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-cyan-300 hover:shadow-lg"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-cyan-100 text-xl font-bold text-cyan-700">
-                        {imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={imageUrl}
-                            alt={player.name || "Player"}
-                            loading="lazy"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          getPlayerInitials(player.name)
-                        )}
-                      </div>
-
-                      <div className="min-w-0">
-                        <h2 className="truncate text-2xl font-bold text-[#29496d]">
-                          {player.name || "Untitled player"}
-                        </h2>
-
-                        <p className="mt-1 text-sm font-semibold text-slate-500">
-                          {player.teamName || player.school || "No team"}
-                        </p>
-
-                        <p className="mt-1 text-sm text-slate-400">
-                          {[player.position, player.sport]
-                            .filter(Boolean)
-                            .join(" · ") || "No position"}
-                        </p>
-                      </div>
+              {visiblePlayers.map((player) => (
+                <Link
+                  key={player.$id}
+                  href={`/players/${player.$id}`}
+                  prefetch={false}
+                  className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-cyan-300 hover:shadow-lg"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-cyan-100 text-xl font-bold text-cyan-700">
+                      {getPlayerInitials(player.name)}
                     </div>
 
-                    <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide">
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
-                        #{player.number || 0}
-                      </span>
+                    <div className="min-w-0">
+                      <h2 className="truncate text-2xl font-bold text-[#29496d]">
+                        {player.name || "Untitled player"}
+                      </h2>
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
-                        Age {player.age || 0}
-                      </span>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        {player.teamName || player.school || "No team"}
+                      </p>
 
-                      <span
-                        className={`rounded-full px-3 py-1 ${
-                          player.active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {player.active ? "Active" : "Inactive"}
-                      </span>
+                      <p className="mt-1 text-sm text-slate-400">
+                        {[player.position, player.sport]
+                          .filter(Boolean)
+                          .join(" · ") || "No position"}
+                      </p>
                     </div>
-                  </Link>
-                );
-              })}
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide">
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                      #{player.number || 0}
+                    </span>
+
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                      Age {player.age || 0}
+                    </span>
+
+                    <span
+                      className={`rounded-full px-3 py-1 ${
+                        player.active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {player.active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
 

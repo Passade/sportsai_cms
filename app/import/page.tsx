@@ -35,7 +35,6 @@ type PlayerImportRow = {
   dateOfBirth: string;
   age: string;
   country: string;
-  imageUrl: string;
   active: string;
   status: ImportStatus;
   message: string;
@@ -174,7 +173,6 @@ function parsePlayersCsv(csvText: string) {
     dateOfBirth: getColumn(headers, row.values, "dateofbirth"),
     age: getColumn(headers, row.values, "age"),
     country: getColumn(headers, row.values, "country"),
-    imageUrl: getColumn(headers, row.values, "imageurl"),
     active: getColumn(headers, row.values, "active") || "true",
   }));
 }
@@ -317,9 +315,9 @@ function downloadTemplate(mode: ImportMode) {
         ].join("\n")
       : mode === "players"
       ? [
-          "name,school,teamName,sport,position,number,dateOfBirth,age,country,imageUrl,active",
-          "Tinashe Moyo,Prince Edward,Prince Edward,Football,Forward,10,2008-05-12,17,Zimbabwe,,true",
-          "Kuda Nyoni,St George's College,St George's College,Football,Midfielder,8,2008-09-20,17,Zimbabwe,,true",
+          "name,school,teamName,sport,position,number,dateOfBirth,age,country,active",
+          "Tinashe Moyo,Prince Edward,Prince Edward,Football,Forward,10,2008-05-12,17,Zimbabwe,true",
+          "Kuda Nyoni,St George's College,St George's College,Football,Midfielder,8,2008-09-20,17,Zimbabwe,true",
         ].join("\n")
       : [
           "homeTeam,awayTeam,sport,communityName,competition,venue,matchDate,status,homeScore,awayScore,isStreamed,streamId",
@@ -476,7 +474,6 @@ export default function ImportPage() {
       dateOfBirth: string;
       age: string;
       country: string;
-      imageUrl: string;
       active: string;
     }>
   ) {
@@ -521,13 +518,6 @@ export default function ImportPage() {
         };
       }
 
-      if (!validateUrl(row.imageUrl)) {
-        return {
-          ...row,
-          status: "invalid" as ImportStatus,
-          message: "Image URL must be a valid http or https URL.",
-        };
-      }
 
       if (seenKeys.has(key)) {
         return {
@@ -770,7 +760,6 @@ export default function ImportPage() {
             dateOfBirth: row.dateOfBirth,
             age: row.age,
             country: row.country,
-            imageUrl: row.imageUrl,
             active: parseActive(row.active),
           });
 
@@ -904,8 +893,8 @@ export default function ImportPage() {
           <strong> school</strong>, <strong>teamName</strong>,{" "}
           <strong>sport</strong>, <strong>position</strong>,{" "}
           <strong>number</strong>, <strong>dateOfBirth</strong>,{" "}
-          <strong>age</strong>, <strong>country</strong>,{" "}
-          <strong>imageUrl</strong>, and <strong>active</strong>.
+          <strong>age</strong>, <strong>country</strong>, and{" "}
+          <strong>active</strong>.
         </>
       );
     }

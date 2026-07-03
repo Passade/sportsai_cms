@@ -1,19 +1,25 @@
 "use client";
 
+import CmsAuthGuard from "@/components/cms-auth-guard";
+import CmsImageUpload from "@/components/cms-image-upload";
+import CmsLogoutButton from "@/components/cms-logout-button";
 import {
-  getSportTierCardById,
-  updateSportTierCard,
+  CmsSportTierCard,
+  CreateSportTierCardInput,
+  deleteCmsSportsTierCard,
+  getCmsSportsTierCardById,
+  updateCmsSportsTierCard,
 } from "@/lib/SportTierCards";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const categories = [
   "Premium Sports",
   "Gold Sports",
   "Silver Sports",
-  "Shows",
   "Starter Plan",
+  "Shows",
 ];
 
 const sports = [
@@ -25,182 +31,315 @@ const sports = [
   "Waterpolo",
   "Volleyball",
   "Basketball",
-  "Tennis",
   "Athletics",
   "Other",
 ];
 
-export default function EditSportsTierCardPage() {
-  const router = useRouter();
-  const params = useParams<{ id: string }>();
+function getInitialForm(card?: CmsSportTierCard): CreateSportTierCardInput {
+  return {
+    name: card?.name || "",
+    category: card?.category || "Premium Sports",
+    sport: card?.sport || "Rugby",
+    imageUrl: card?.imageUrl || "",
+    isActive: Boolean(card?.isActive),
+  };
+}
 
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("Premium Sports");
-  const [sport, setSport] = useState("Rugby");
-  const [imageUrl, setImageUrl] = useState("");
-  const [isActive, setIsActive] = useState(true);
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        type={type}
+        className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
+      />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+}) {
+  return (
+    <label className="block">
+      <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+export default function EditSportsTierCardPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+
+  const [card, setCard] = useState<CmsSportTierCard | null>(null);
+  const [form, setForm] = useState<CreateSportTierCardInput>(getInitialForm());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function loadCard() {
+    try {
+      setLoading(true);
+
+      const data = await getCmsSportsTierCardById(params.id);
+
+      setCard(data);
+      setForm(getInitialForm(data));
+    } catch (error: any) {
+      console.error("Sports tier card detail load error:", error);
+      alert(error?.message || "Could not load sports tier card.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadCard() {
-      try {
-        setLoading(true);
-
-        const card = await getSportTierCardById(params.id);
-
-        setName(card.name || "");
-        setCategory(card.category || "Premium Sports");
-        setSport(card.sport || "Rugby");
-        setImageUrl(card.imageUrl || "");
-        setIsActive(Boolean(card.isActive));
-      } catch (error) {
-        console.error("Failed to load sports tier card:", error);
-        alert("Failed to load sports tier card.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     if (params.id) {
       loadCard();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
-  async function handleSubmit(event: FormEvent) {
+  function updateField(
+    key: keyof CreateSportTierCardInput,
+    value: string | boolean
+  ) {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!name.trim()) {
-      alert("Please enter a card name.");
+    if (!form.name.trim()) {
+      alert("Add a card name.");
+      return;
+    }
+
+    if (!form.category.trim()) {
+      alert("Choose a category.");
+      return;
+    }
+
+    if (!form.sport.trim()) {
+      alert("Choose a sport.");
+      return;
+    }
+
+    if (!form.imageUrl.trim()) {
+      alert("Upload or paste an image URL.");
       return;
     }
 
     try {
       setSaving(true);
 
-      await updateSportTierCard(params.id, {
-        name: name.trim(),
-        category,
-        sport,
-        imageUrl: imageUrl.trim(),
-        isActive,
+      await updateCmsSportsTierCard(params.id, {
+        ...form,
+        name: form.name.trim(),
+        category: form.category.trim(),
+        sport: form.sport.trim(),
+        imageUrl: form.imageUrl.trim(),
       });
 
       router.push("/sports-tier-cards");
-    } catch (error) {
-      console.error("Failed to update sports tier card:", error);
-      alert("Failed to update sports tier card.");
+    } catch (error: any) {
+      console.error("Update sports tier card error:", error);
+      alert(
+        error?.message ||
+          error?.response?.message ||
+          JSON.stringify(error) ||
+          "Could not save sports tier card."
+      );
     } finally {
       setSaving(false);
     }
   }
 
+  async function handleDelete() {
+    if (!window.confirm("Delete this sports tier card? This cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      await deleteCmsSportsTierCard(params.id);
+
+      router.push("/sports-tier-cards");
+    } catch (error: any) {
+      console.error("Delete sports tier card error:", error);
+      alert(error?.message || "Could not delete sports tier card.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
-      <div className="mx-auto max-w-3xl">
-        <Link
-          href="/sports-tier-cards"
-          className="text-sm font-bold text-blue-300"
-        >
-          ← Back to Sports Tier Cards
-        </Link>
+    <CmsAuthGuard>
+      <main className="min-h-screen bg-[#f8fafc] text-[#29496d]">
+        <section className="border-b border-slate-200 bg-white">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-5 px-8 py-6">
+            <div>
+              <Link
+                href="/sports-tier-cards"
+                prefetch={false}
+                className="text-sm font-bold uppercase tracking-[3px] text-cyan-600"
+              >
+                ← Sports Tier Cards
+              </Link>
 
-        <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-6">
-          <h1 className="text-3xl font-bold">Edit Sports Tier Card</h1>
+              <h1 className="mt-2 text-4xl font-bold">Edit Sports Tier Card</h1>
 
+              <p className="mt-2 text-slate-500">
+                {card?.$id ? `Card ID: ${card.$id}` : "Loading card..."}
+              </p>
+            </div>
+
+            <CmsLogoutButton />
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-5xl px-8 py-10">
           {loading ? (
-            <p className="mt-6 text-slate-400">Loading card...</p>
+            <div className="rounded-[28px] border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">
+              Loading sports tier card...
+            </div>
           ) : (
-            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-              <div>
-                <label className="text-sm font-bold text-slate-300">
-                  Card Name
-                </label>
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="grid gap-6">
+              <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-2xl font-bold text-[#29496d]">Card Details</h2>
 
-              <div>
-                <label className="text-sm font-bold text-slate-300">
-                  Category
-                </label>
-                <select
-                  value={category}
-                  onChange={(event) => setCategory(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
-                >
-                  {categories.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="mt-6 grid gap-5 md:grid-cols-2">
+                  <Field
+                    label="Card Name"
+                    value={form.name}
+                    onChange={(value) => updateField("name", value)}
+                    placeholder="Example: Derby Day"
+                  />
 
-              <div>
-                <label className="text-sm font-bold text-slate-300">
-                  Sport
-                </label>
-                <select
-                  value={sport}
-                  onChange={(event) => setSport(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
-                >
-                  {sports.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <SelectField
+                    label="Category"
+                    value={form.category}
+                    onChange={(value) => updateField("category", value)}
+                    options={categories}
+                  />
 
-              <div>
-                <label className="text-sm font-bold text-slate-300">
-                  Image URL
-                </label>
-                <input
-                  value={imageUrl}
-                  onChange={(event) => setImageUrl(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none"
-                />
+                  <SelectField
+                    label="Sport"
+                    value={form.sport}
+                    onChange={(value) => updateField("sport", value)}
+                    options={sports}
+                  />
 
-                {imageUrl ? (
-                  <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-slate-900">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imageUrl}
-                      alt="Preview"
-                      className="h-56 w-full object-cover"
+                  <div className="rounded-2xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
+                    Uploading below uses your existing CMS image upload component, so it keeps the same compression and upload flow as Ads.
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Field
+                      label="Image URL"
+                      value={form.imageUrl}
+                      onChange={(value) => updateField("imageUrl", value)}
+                      placeholder="Upload below or paste an ImageKit/Appwrite image URL"
                     />
                   </div>
-                ) : null}
+
+                  <div className="md:col-span-2">
+                    <CmsImageUpload
+                      label="Upload Replacement Image"
+                      value={form.imageUrl}
+                      onUploaded={(url) => updateField("imageUrl", url)}
+                    />
+                  </div>
+                </div>
+
+                <label className="mt-6 flex items-center gap-3">
+                  <input
+                    checked={form.isActive}
+                    onChange={(event) =>
+                      updateField("isActive", event.target.checked)
+                    }
+                    type="checkbox"
+                    className="h-5 w-5"
+                  />
+
+                  <span className="font-bold text-[#29496d]">Active card</span>
+                </label>
               </div>
 
-              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={(event) => setIsActive(event.target.checked)}
-                />
-                <span className="text-sm font-bold text-slate-300">
-                  Active in app
-                </span>
-              </label>
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting || saving}
+                  className="rounded border border-red-200 bg-white px-7 py-4 text-lg font-bold text-red-600 disabled:opacity-60"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full rounded-full bg-white px-5 py-4 font-bold text-slate-950 disabled:opacity-60"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
+                <Link
+                  href="/sports-tier-cards"
+                  prefetch={false}
+                  className="rounded border border-slate-200 bg-white px-7 py-4 text-lg font-bold text-[#29496d]"
+                >
+                  Cancel
+                </Link>
+
+                <button
+                  type="submit"
+                  disabled={saving || deleting}
+                  className="rounded bg-cyan-500 px-7 py-4 text-lg font-bold text-white disabled:opacity-60"
+                >
+                  {saving ? "Saving..." : "Save Card"}
+                </button>
+              </div>
             </form>
           )}
-        </div>
-      </div>
-    </main>
+        </section>
+      </main>
+    </CmsAuthGuard>
   );
 }

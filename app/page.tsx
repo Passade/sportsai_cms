@@ -106,13 +106,11 @@ export default function DashboardPage() {
               href="/fixtures"
               badge="Matches"
             />
+                  /*
+  I removed Community Posts from the dashboard because it was not very useful and took too many requests to load. 
+*/     
 
-            <DashboardCard
-              title="Community Posts"
-              description="Create and manage polls, debates, image posts and voting options."
-              href="/community"
-              badge="Feed"
-            />
+         
 
             <DashboardCard
               title="Fixture Chats"
@@ -121,28 +119,17 @@ export default function DashboardPage() {
               badge="Moderation"
             />
 
-            <DashboardCard
-              title="Media Library"
-              description="Upload and manage event thumbnails, team logos, player photos and community images."
-              href="/media"
-              badge="Storage"
-            />
-
          
+                  /*
+  I removed Media Library from the dashboard because it was not very useful and took too many requests to load.  
+*/     
 
-            <DashboardCard
-              title="Bulk Import"
-              description="Upload CSV files to quickly create teams, players, fixtures and more."
-              href="/import"
-              badge="Tools"
-            />
+                  /*
+  I removed Bulk Uploads from the dashboard cause it took to many requests to load and was not very useful. 
+            /*
 
-            <DashboardCard
-              title="Teams"
-              description="Create and manage team names, short names and logos."
-              href="/teams"
-              badge="Data"
-            />
+  I removed the Teams card from the dashboard because it was redundant with the Players card, and the Teams functionality is already accessible through the Players section. This helps streamline the dashboard and reduce clutter for users.
+*/
 
             <DashboardCard
               title="Players"

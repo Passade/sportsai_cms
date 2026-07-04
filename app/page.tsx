@@ -55,9 +55,7 @@ export default function DashboardPage() {
 
               <h1 className="mt-2 text-4xl font-bold">Admin Dashboard</h1>
 
-              <p className="mt-2 text-slate-500">
-                Manage your SportsAI content without loading unnecessary analytics.
-              </p>
+             
             </div>
 
             <div className="flex items-center gap-3">
@@ -85,10 +83,7 @@ export default function DashboardPage() {
                 Manage your SportsAI content
               </h2>
 
-              <p className="mt-3 text-lg leading-8 text-slate-500">
-                Create events, update fixtures, manage predictions, publish community posts,
-                upload media, and moderate chats.
-              </p>
+              
             </div>
           </div>
 

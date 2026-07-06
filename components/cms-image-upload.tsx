@@ -337,7 +337,7 @@ export default function CmsImageUpload({
           </p>
 
           <p className="mt-1 text-sm text-slate-500">
-            Uploads are compressed before Appwrite Storage. Preset: {preset.label}.
+            Uploads are compressed. Preset: {preset.label}.
           </p>
 
           <p className="mt-1 text-xs text-slate-400">

@@ -589,14 +589,14 @@ export default function CreateEventPage() {
                 <SelectField label="Streamed By Sports AI" value={streamedBySportsAi} onChange={setStreamedBySportsAi} options={[{ label: "YES", value: "YES" }, { label: "NO", value: "NO" }]} />
               </div>
               <div className="col-span-12 md:col-span-4">
-                <TextAreaField label="Technition(s)" value={technicians} onChange={setTechnicians} placeholder="Cilani Dube" />
+                <TextAreaField label="Technition(s)" value={technicians} onChange={setTechnicians} placeholder="Tech's name" />
               </div>
               <div className="col-span-12 md:col-span-4">
-                <TextAreaField label="Comentator(s)" value={commentators} onChange={setCommentators} placeholder="Darlington Matambanadzo\nTariro Chawafambra" />
+                <TextAreaField label="Comentator(s)" value={commentators} onChange={setCommentators} placeholder="Commentator's Name" />
               </div>
 
               <div className="col-span-12 md:col-span-4">
-                <TextField label="Stiching By" value={stitchingBy} onChange={setStitchingBy} placeholder="Dimitri Passade" />
+                <TextField label="Stiching By" value={stitchingBy} onChange={setStitchingBy} placeholder="Stitcher" />
               </div>
               <div className="col-span-12 md:col-span-4">
                 <SelectField label="Status" value={status} onChange={(value) => setStatus(value as EventStatus)} options={STATUS_OPTIONS} />

@@ -34,54 +34,70 @@ async function compressPoster(
   source: Buffer,
   orientation: "horizontal" | "vertical"
 ) {
-  const widths =
-    orientation === "vertical"
-      ? [500, 450, 400, 360, 320, 280]
-      : [1200, 1000, 900, 800, 720, 640];
-  const aspectRatio = orientation === "vertical" ? 1600 / 500 : 500 / 1600;
-  const qualities = [65, 55, 45, 38, 32, 26, 20];
+  const horizontalSizes = [
+    { width: 1108, height: 623 },
+    { width: 960, height: 540 },
+    { width: 800, height: 450 },
+    { width: 640, height: 360 },
+  ];
+
+  const verticalSizes = [
+    { width: 500, height: 1600 },
+    { width: 450, height: 1440 },
+    { width: 400, height: 1280 },
+    { width: 350, height: 1120 },
+  ];
+
+  const sizes = orientation === "vertical" ? verticalSizes : horizontalSizes;
+  const qualities = [70, 60, 50, 42, 36, 30, 24];
 
   let smallest: Buffer | null = null;
-  let selectedWidth = widths[0];
+  let selectedWidth = sizes[0].width;
+  let selectedHeight = sizes[0].height;
   let selectedQuality = qualities[0];
 
-  for (const width of widths) {
+  for (const size of sizes) {
     for (const quality of qualities) {
       const output = await sharp(source, { failOn: "none" })
         .rotate()
         .resize({
-          width,
-          height: Math.round(width * aspectRatio),
-          fit: "cover",
+          width: size.width,
+          height: size.height,
+          fit: "contain",
           position: "centre",
-          withoutEnlargement: true,
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+          withoutEnlargement: false,
         })
         .webp({
           quality,
           effort: 6,
           smartSubsample: true,
+          alphaQuality: 80,
         })
         .toBuffer();
 
       if (!smallest || output.length < smallest.length) {
         smallest = output;
-        selectedWidth = width;
+        selectedWidth = size.width;
+        selectedHeight = size.height;
         selectedQuality = quality;
       }
 
       if (output.length <= TARGET_BYTES) {
         return {
           buffer: output,
-          width,
+          width: size.width,
+          height: size.height,
           quality,
           reachedTarget: true,
         };
       }
 
-      if (output.length <= ACCEPTABLE_BYTES && quality <= 38) {
+      if (output.length <= ACCEPTABLE_BYTES && quality <= 42) {
         return {
           buffer: output,
-          width,
+          width: size.width,
+          height: size.height,
           quality,
           reachedTarget: false,
         };
@@ -96,6 +112,7 @@ async function compressPoster(
   return {
     buffer: smallest,
     width: selectedWidth,
+    height: selectedHeight,
     quality: selectedQuality,
     reachedTarget: smallest.length <= TARGET_BYTES,
   };
@@ -241,6 +258,7 @@ export async function POST(request: NextRequest) {
       compressedKilobytes: Number((compressed.buffer.length / 1024).toFixed(1)),
       outputFormat: "webp",
       width: compressed.width,
+      height: compressed.height,
       quality: compressed.quality,
       reachedTarget: compressed.reachedTarget,
       orientation,

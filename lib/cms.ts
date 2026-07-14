@@ -15,6 +15,7 @@ const CMS_EVENT_LIST_SELECT = [
   "matchDate",
   "venue",
   "thumbnail",
+  "verticalCard",
   "competition",
   "sport",
   "isFeatured",
@@ -234,6 +235,7 @@ export type CreateEventInput = {
   matchDate: string;
   venue: string;
   thumbnail: string;
+  verticalCard: string;
   streamUrl: string;
   vodUrl: string;
   camera: string;
@@ -992,6 +994,7 @@ export async function createCmsEvent(input: CreateEventInput) {
     matchDate,
     venue: input.venue,
     thumbnail: input.thumbnail,
+    verticalCard: input.verticalCard,
     streamUrl: input.streamUrl,
     vodUrl: input.vodUrl,
     description: input.description,
@@ -1040,6 +1043,7 @@ export async function updateCmsEvent(id: string, input: CreateEventInput) {
     matchDate,
     venue: input.venue,
     thumbnail: input.thumbnail,
+    verticalCard: input.verticalCard,
     streamUrl: input.streamUrl,
     vodUrl: input.vodUrl,
     description: input.description,

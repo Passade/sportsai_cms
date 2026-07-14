@@ -156,17 +156,63 @@ function Fieldset({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-function CardPreview({ title, subtitle, imageUrl }: { title: string; subtitle: string; imageUrl: string }) {
+function CardPreview({
+  title,
+  subtitle,
+  imageUrl,
+  orientation = "horizontal",
+}: {
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  orientation?: "horizontal" | "vertical";
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
+
+  const previewClassName =
+    orientation === "vertical"
+      ? "mx-auto h-[420px] w-[220px] object-contain"
+      : "h-[280px] w-full object-contain";
+
   return (
     <div className="border border-slate-200 bg-white p-4">
       <div className="mb-3">
-        <p className="text-xs font-extrabold uppercase tracking-wide text-[#8ba0b6]">{title}</p>
-        <p className="mt-1 max-w-xs text-xs font-semibold leading-5 text-slate-400">{subtitle}</p>
+        <p className="text-xs font-extrabold uppercase tracking-wide text-[#8ba0b6]">
+          {title}
+        </p>
+        <p className="mt-1 max-w-xs text-xs font-semibold leading-5 text-slate-400">
+          {subtitle}
+        </p>
       </div>
-      {imageUrl ? (
-        <img src={imageUrl} alt={title} className="max-h-72 w-full object-contain" />
+
+      {imageUrl && !imageFailed ? (
+        <div className="flex min-h-[280px] items-center justify-center overflow-hidden border border-slate-200 bg-slate-50 p-3">
+          <img
+            key={imageUrl}
+            src={imageUrl}
+            alt={title}
+            className={previewClassName}
+            onLoad={() => setImageFailed(false)}
+            onError={() => setImageFailed(true)}
+          />
+        </div>
+      ) : imageUrl && imageFailed ? (
+        <div className="flex min-h-[280px] flex-col items-center justify-center gap-2 border border-red-200 bg-red-50 p-5 text-center">
+          <p className="text-sm font-extrabold text-red-600">
+            Could not load this preview
+          </p>
+          <p className="max-w-md break-all text-xs font-semibold text-red-500">
+            {imageUrl}
+          </p>
+        </div>
       ) : (
-        <div className="flex h-48 items-center justify-center border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-400">No image uploaded yet</div>
+        <div className="flex min-h-[280px] items-center justify-center border border-dashed border-slate-300 bg-slate-50 text-sm font-bold text-slate-400">
+          No image uploaded yet
+        </div>
       )}
     </div>
   );
@@ -724,6 +770,7 @@ export default function EditEventPage() {
                   title="Horizontal Card / Thumbnail"
                   subtitle="Uploads are compressed: Ad banner. Target max size: about 400 KB."
                   imageUrl={thumbnail}
+                  orientation="horizontal"
                 />
               </div>
 
@@ -743,6 +790,7 @@ export default function EditEventPage() {
                   title="Vertical Card"
                   subtitle="Uploads are compressed. Target max size: about 400 KB."
                   imageUrl={verticalCard}
+                  orientation="vertical"
                 />
               </div>
             </div>

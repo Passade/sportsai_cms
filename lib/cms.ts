@@ -19,6 +19,7 @@ const CMS_EVENT_LIST_SELECT = [
   "sport",
   "isFeatured",
   "vodType",
+  "vodUrl",
   "fixturesId",
   "searchText",
 ];
@@ -1068,6 +1069,101 @@ export async function updateCmsEvent(id: string, input: CreateEventInput) {
   });
 
   return event;
+}
+
+export async function updateCmsEventStatus(
+  id: string,
+  status: EventStatus
+) {
+  const event: any = await getCmsEventById(id);
+
+  const data = {
+    title:
+      event.title ||
+      `${event.homeTeam || "Home"} vs ${event.awayTeam || "Away"}`,
+    status,
+    homeTeam: event.homeTeam || "",
+    awayTeam: event.awayTeam || "",
+    matchDate: event.matchDate || "",
+    venue: event.venue || "",
+    description: event.description || "",
+    competition: event.competition || "",
+    sport: event.sport || "",
+    vodType: event.vodType || "",
+  };
+
+  const updatedEvent = await databases.updateDocument(
+    config.databaseId,
+    config.streamsCollectionId,
+    id,
+    {
+      status,
+      searchText: buildSearchText(data),
+    }
+  );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "event",
+    entityId: id,
+    entityTitle: data.title,
+    message: `Changed event status to ${status}`,
+    metadata: {
+      status,
+    },
+  });
+
+  return updatedEvent;
+}
+
+export async function updateCmsEventVod(
+  id: string,
+  input: {
+    vodUrl: string;
+    vodType: VodType;
+    setStatusToVod?: boolean;
+  }
+) {
+  const vodUrl = input.vodUrl.trim();
+
+  if (!vodUrl) {
+    throw new Error("Please enter a VOD URL.");
+  }
+
+  try {
+    new URL(vodUrl);
+  } catch {
+    throw new Error("Please enter a valid VOD URL.");
+  }
+
+  const updateData: Record<string, any> = {
+    vodUrl,
+    vodType: input.vodType,
+  };
+
+  if (input.setStatusToVod) {
+    updateData.status = "vod";
+  }
+
+  const updatedEvent = await databases.updateDocument(
+    config.databaseId,
+    config.streamsCollectionId,
+    id,
+    updateData
+  );
+
+  await createCmsAuditLog({
+    action: "update",
+    entityType: "event",
+    entityId: id,
+    message: `Updated VOD for event ${id}`,
+    metadata: {
+      vodType: input.vodType,
+      setStatusToVod: Boolean(input.setStatusToVod),
+    },
+  });
+
+  return updatedEvent;
 }
 
 export async function deleteCmsEvent(id: string) {
@@ -2226,6 +2322,8 @@ export async function getCmsFixtureChatsByFixtureId(fixtureId: string) {
   const page = await getCmsFixtureChatsPage({ fixtureId });
   return page.documents;
 }
+
+
 
 export async function updateCmsFixtureChat(
   id: string,

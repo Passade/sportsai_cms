@@ -72,7 +72,7 @@ function getPresetFromLabel(label: string): ImageUploadPreset {
       quality: 0.78,
       targetMaxBytes: 400 * 1024,
       outputType: "image/webp",
-      label: "Ad banner 1600x500",
+      label: "Ad banner ",
     };
   }
 

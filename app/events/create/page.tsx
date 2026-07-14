@@ -716,13 +716,13 @@ export default function CreateEventPage() {
                   placeholder="Paste thumbnail URL or upload below"
                 />
                 <CmsImageUpload
-                  label="Upload Horizontal Card / Thumbnail - Preset 1600x500"
+                  label="Upload Horizontal Card / Thumbnail "
                   value={thumbnail}
                   onUploaded={setThumbnail}
                 />
                 <CardPreview
                   title="Horizontal Card / Thumbnail"
-                  subtitle="Uploads are compressed. Preset: Ad banner 1600x500. Target max size: about 400 KB."
+                  subtitle="Uploads are compressed. Preset:  Target max size: about 400 KB."
                   imageUrl={thumbnail}
                 />
               </div>
@@ -735,13 +735,13 @@ export default function CreateEventPage() {
                   placeholder="Paste vertical card URL or upload below"
                 />
                 <CmsImageUpload
-                  label="Upload Vertical Card - Preset 500x1600"
+                  label="Upload Vertical Card "
                   value={verticalCard}
                   onUploaded={setVerticalCard}
                 />
                 <CardPreview
                   title="Vertical Card"
-                  subtitle="Uploads are compressed. Preset: Ad banner 500x1600. Target max size: about 400 KB."
+                  subtitle="Uploads are compressed. Preset: Ad banner. Target max size: about 400 KB."
                   imageUrl={verticalCard}
                 />
               </div>

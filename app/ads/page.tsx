@@ -4,6 +4,7 @@ import CmsAuthGuard from "@/components/cms-auth-guard";
 import CmsLogoutButton from "@/components/cms-logout-button";
 import {
   CmsAdBanner,
+  createCmsAdBanner,
   deleteCmsAdBanner,
   getCmsAdBannersPage,
   setCmsAdBannerActive,
@@ -36,6 +37,7 @@ export default function AdsPage() {
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const [savingId, setSavingId] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [duplicatingId, setDuplicatingId] = useState("");
 
   const [total, setTotal] = useState(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -154,6 +156,43 @@ export default function AdsPage() {
       alert(error?.message || "Could not update ad status.");
     } finally {
       setSavingId("");
+    }
+  }
+
+  function buildDuplicateAdPayload(ad: CmsAdBanner) {
+    const payload = Object.fromEntries(
+      Object.entries(ad as any).filter(([key]) => !key.startsWith("$"))
+    ) as any;
+
+    return {
+      ...payload,
+      title: `${getAdTitle(ad)} Copy`,
+      isActive: false,
+      sortOrder:
+        typeof payload.sortOrder === "number" ? payload.sortOrder + 1 : 999,
+    };
+  }
+
+  async function handleDuplicate(ad: CmsAdBanner) {
+    if (!window.confirm(`Duplicate ${getAdTitle(ad)}? The copy will be inactive first.`)) {
+      return;
+    }
+
+    try {
+      setDuplicatingId(ad.$id);
+
+      const duplicated = await createCmsAdBanner(
+        buildDuplicateAdPayload(ad) as any
+      );
+
+      setAds((current) => [duplicated, ...current]);
+      setTotal((current) => current + 1);
+      alert("Ad duplicated. The new copy is inactive so you can edit it before going live.");
+    } catch (error: any) {
+      console.error("Ad duplicate error:", error);
+      alert(error?.message || "Could not duplicate ad.");
+    } finally {
+      setDuplicatingId("");
     }
   }
 
@@ -341,7 +380,7 @@ export default function AdsPage() {
                     <button
                       type="button"
                       onClick={() => toggleActive(ad)}
-                      disabled={savingId === ad.$id || deletingId === ad.$id}
+                      disabled={savingId === ad.$id || deletingId === ad.$id || duplicatingId === ad.$id}
                       className="rounded border border-slate-200 bg-white px-4 py-3 font-bold text-[#29496d] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {savingId === ad.$id
@@ -353,8 +392,17 @@ export default function AdsPage() {
 
                     <button
                       type="button"
+                      onClick={() => handleDuplicate(ad)}
+                      disabled={savingId === ad.$id || deletingId === ad.$id || duplicatingId === ad.$id}
+                      className="rounded border border-cyan-200 bg-white px-4 py-3 font-bold text-cyan-700 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {duplicatingId === ad.$id ? "Duplicating..." : "Duplicate"}
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleDelete(ad)}
-                      disabled={deletingId === ad.$id}
+                      disabled={savingId === ad.$id || deletingId === ad.$id || duplicatingId === ad.$id}
                       className="rounded border border-red-200 bg-white px-4 py-3 font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {deletingId === ad.$id ? "Deleting..." : "Delete"}

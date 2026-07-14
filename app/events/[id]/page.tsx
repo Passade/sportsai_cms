@@ -203,6 +203,12 @@ function buildOptionalDateTime(date: string, time: string) {
 }
 
 
+type FmsFixtureCard = {
+  id?: string | null;
+  orientation?: string | null;
+  preview_url?: string | null;
+} | null;
+
 type FmsFixture = {
   fixture_code?: string | null;
   match_title?: string | null;
@@ -234,10 +240,15 @@ type FmsFixture = {
   venue?: string | null;
   city?: string | null;
   country?: string | null;
+  card_horizontal?: FmsFixtureCard;
+  card_vertical?: FmsFixtureCard;
 };
 
 const FMS_FIXTURE_ENDPOINT =
   "https://dofdaonihjosfcmowewq.supabase.co/functions/v1/get-fixture-by-code";
+
+const FMS_SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_FMS_SUPABASE_ANON_KEY || "";
 
 function normaliseSport(value?: string | null) {
   if (!value) return "Rugby";
@@ -262,8 +273,21 @@ async function importFixtureByCode(code: string): Promise<FmsFixture> {
     throw new Error("Please enter an FMS fixture code first.");
   }
 
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  if (FMS_SUPABASE_ANON_KEY) {
+    headers.Authorization = `Bearer ${FMS_SUPABASE_ANON_KEY}`;
+    headers.Apikey = FMS_SUPABASE_ANON_KEY;
+  }
+
   const response = await fetch(
-    `${FMS_FIXTURE_ENDPOINT}?code=${encodeURIComponent(cleanCode)}`
+    `${FMS_FIXTURE_ENDPOINT}?code=${encodeURIComponent(cleanCode)}`,
+    {
+      method: "GET",
+      headers,
+    }
   );
 
   if (response.status === 404) {
@@ -414,6 +438,8 @@ export default function EditEventPage() {
     setVenue(fixture.venue || "");
     setCity(fixture.city || "");
     setCountry(fixture.country || "Zimbabwe");
+    setThumbnail(fixture.card_horizontal?.preview_url || "");
+    setVerticalCard(fixture.card_vertical?.preview_url || "");
   }
 
   async function handleImportFixture() {

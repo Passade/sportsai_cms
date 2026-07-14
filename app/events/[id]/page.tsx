@@ -266,6 +266,46 @@ function normaliseGender(value?: string | null) {
   return "Boys";
 }
 
+
+async function copyPosterToAppwrite(
+  imageUrl?: string | null,
+  filenameHint?: string,
+  orientation: "horizontal" | "vertical" = "horizontal"
+) {
+  const cleanUrl = String(imageUrl || "").trim();
+
+  if (!cleanUrl) {
+    return "";
+  }
+
+  const response = await fetch("/api/import-thumbnail", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      imageUrl: cleanUrl,
+      filenameHint: filenameHint || "fms-poster",
+      orientation,
+    }),
+  });
+
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      result?.error ||
+        `Could not copy the FMS image into Appwrite (${response.status}).`
+    );
+  }
+
+  if (!result?.publicUrl) {
+    throw new Error("Appwrite upload completed without returning a public URL.");
+  }
+
+  return String(result.publicUrl);
+}
+
 async function importFixtureByCode(code: string): Promise<FmsFixture> {
   const cleanCode = code.trim().toUpperCase();
 
@@ -445,12 +485,47 @@ export default function EditEventPage() {
   async function handleImportFixture() {
     try {
       setImportingFixture(true);
+
       const fixture = await importFixtureByCode(fmsFixtureCode);
       applyImportedFixture(fixture);
-      alert("Fixture imported from FMS.");
+
+      const filenameBase =
+        fixture.fixture_code ||
+        fixture.match_title ||
+        fmsFixtureCode.trim().toUpperCase() ||
+        "fms-fixture";
+
+      const [horizontalUrl, verticalUrl] = await Promise.all([
+        copyPosterToAppwrite(
+          fixture.card_horizontal?.preview_url,
+          `${filenameBase}-horizontal`,
+          "horizontal"
+        ),
+        copyPosterToAppwrite(
+          fixture.card_vertical?.preview_url,
+          `${filenameBase}-vertical`,
+          "vertical"
+        ),
+      ]);
+
+      if (horizontalUrl) {
+        setThumbnail(horizontalUrl);
+      }
+
+      if (verticalUrl) {
+        setVerticalCard(verticalUrl);
+      }
+
+      alert(
+        "Fixture imported and both compressed posters were copied into Appwrite Storage."
+      );
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : "Could not import fixture from FMS.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Could not import fixture from FMS."
+      );
     } finally {
       setImportingFixture(false);
     }

@@ -135,6 +135,7 @@ export type EventStatus =
 export type FixtureStatus =
   | "upcoming"
   | "live"
+  | "result"
   | "completed"
   | "cancelled"
   | "hidden";
@@ -889,7 +890,14 @@ export async function scoreCmsPredictionsForFixture(fixtureId: string) {
     config.fixturesCollectionId,
     fixtureId,
     {
-      status: "completed",
+      status: "result",
+      searchText: buildSearchText({
+        homeTeam: normalizedFixture.homeTeam,
+        awayTeam: normalizedFixture.awayTeam,
+        homeScore: normalizedFixture.homeScore,
+        awayScore: normalizedFixture.awayScore,
+        status: "result",
+      }),
     }
   );
 

@@ -255,7 +255,7 @@ export default function EditFixturePage() {
 
   async function handleScorePredictions() {
     const confirmed = window.confirm(
-      "Score all predictions for this fixture using the current final score? This will set predictionStatus to scored."
+      "Score all predictions for this fixture using the current final score? This will set the fixture status to result and predictionStatus to scored."
     );
 
     if (!confirmed) {
@@ -267,7 +267,7 @@ export default function EditFixturePage() {
 
       await updateCmsFixture(params.id, {
         ...form,
-        status: "completed",
+        status: "result",
       });
 
       const result = await scoreCmsPredictionsForFixture(params.id);
@@ -360,7 +360,14 @@ export default function EditFixturePage() {
             <h2 className="text-2xl font-bold text-[#29496d]">Quick Status</h2>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              {(["upcoming", "live", "completed", "cancelled", "hidden"] as FixtureStatus[]).map(
+              {([
+                "upcoming",
+                "live",
+                "result",
+                "completed",
+                "cancelled",
+                "hidden",
+              ] as FixtureStatus[]).map(
                 (status) => (
                   <button
                     key={status}
@@ -453,6 +460,7 @@ export default function EditFixturePage() {
                   >
                     <option value="upcoming">Upcoming</option>
                     <option value="live">Live</option>
+                    <option value="result">Result</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="hidden">Hidden</option>

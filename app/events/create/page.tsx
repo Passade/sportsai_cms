@@ -1,13 +1,12 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import LocalTeamNameField from "@/components/local-team-name-field";
 import CmsImageUpload from "@/components/cms-image-upload";
 import {
-  CmsTeam,
   EventStatus,
   VodType,
   createCmsEvent,
-  getCmsTeams,
 } from "@/lib/cms";
 import { getCmsErrorMessage, useCmsToast } from "@/components/cms-toast-provider";
 import Link from "next/link";
@@ -114,50 +113,6 @@ function SelectField({
           </option>
         ))}
       </select>
-    </label>
-  );
-}
-
-function TeamNameField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  teams,
-  datalistId,
-  required = false,
-}: {
-  label?: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  teams: CmsTeam[];
-  datalistId: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="block">
-      {label ? (
-        <span className="mb-1 block text-xs font-bold text-[#8ba0b6]">
-          {label}
-        </span>
-      ) : null}
-
-      <input
-        type="text"
-        list={datalistId}
-        required={required}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="h-11 w-full border border-slate-300 bg-white px-4 text-sm font-semibold text-[#29496d] outline-none placeholder:text-[#9fb0c2] focus:border-cyan-500"
-      />
-
-      <datalist id={datalistId}>
-        {teams.map((team) => (
-          <option key={team.$id} value={team.name || ""} />
-        ))}
-      </datalist>
     </label>
   );
 }
@@ -395,9 +350,6 @@ async function importFixtureByCode(code: string): Promise<FmsFixture> {
 export default function CreateEventPage() {
   const router = useRouter();
   const { showSuccess, showError, showWarning } = useCmsToast();
-
-  const [teams, setTeams] = useState<CmsTeam[]>([]);
-  const [teamsLoading, setTeamsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [importingFixture, setImportingFixture] = useState(false);
 
@@ -436,26 +388,7 @@ export default function CreateEventPage() {
     () => buildMatchDate(date, startTime),
     [date, startTime]
   );
-
-  useEffect(() => {
-    async function loadTeams() {
-      try {
-        setTeamsLoading(true);
-        const result = await getCmsTeams();
-        setTeams(result);
-      } catch (error) {
-        console.error(error);
-        showError("Could not load teams", getCmsErrorMessage(error));
-      } finally {
-        setTeamsLoading(false);
-      }
-    }
-
-    loadTeams();
-  }, [showError]);
-
-
-  function applyImportedFixture(fixture: FmsFixture) {
+function applyImportedFixture(fixture: FmsFixture) {
     setFmsFixtureCode(fixture.fixture_code || fmsFixtureCode.trim().toUpperCase());
     setTitle(fixture.match_title || "");
     setFederation(fixture.federation || "Zimbabwe Schools");
@@ -658,10 +591,10 @@ export default function CreateEventPage() {
               </div>
 
               <div className="col-span-12 md:col-span-4">
-                <TeamNameField label="Team A" value={homeTeam} onChange={setHomeTeam} teams={teams} datalistId="create-home-team-options" placeholder={teamsLoading ? "Loading teams..." : "Heritage"} required />
+                <LocalTeamNameField label="Team A" value={homeTeam} onChange={setHomeTeam} datalistId="create-home-team-options" placeholder="Heritage" required />
               </div>
               <div className="col-span-12 md:col-span-4">
-                <TeamNameField label="Team B" value={awayTeam} onChange={setAwayTeam} teams={teams} datalistId="create-away-team-options" placeholder={teamsLoading ? "Loading teams..." : "Wise Owl"} required />
+                <LocalTeamNameField label="Team B" value={awayTeam} onChange={setAwayTeam} datalistId="create-away-team-options" placeholder="Wise Owl" required />
               </div>
               <div className="col-span-6 md:col-span-2">
                 <TextField label="Age Group" value={ageGroup} onChange={setAgeGroup} placeholder="2nds Vs 1st" />

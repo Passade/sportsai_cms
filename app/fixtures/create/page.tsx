@@ -1,15 +1,14 @@
 "use client";
 import { databases, storage, account } from "@/lib/appwrite";
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import LocalTeamNameField from "@/components/local-team-name-field";
 import {
   getCmsErrorMessage,
   useCmsToast,
 } from "@/components/cms-toast-provider";
 import {
-  CmsTeam,
   createCmsFixture,
   FixtureStatus,
-  getCmsTeams,
 } from "@/lib/cms";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -63,69 +62,13 @@ function Field({
   );
 }
 
-function TeamNameField({
-  label,
-  value,
-  onChange,
-  teams,
-  datalistId,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  teams: CmsTeam[];
-  datalistId: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
-
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        list={datalistId}
-        placeholder="Start typing a team name..."
-        className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
-      />
-
-      <datalist id={datalistId}>
-        {teams.map((team) => (
-          <option key={team.$id} value={team.name || ""} />
-        ))}
-      </datalist>
-    </label>
-  );
-}
-
 export default function CreateFixturePage() {
   const router = useRouter();
   const { showSuccess, showError, showWarning } = useCmsToast();
 
   const [form, setForm] = useState(initialForm);
   const [saving, setSaving] = useState(false);
-  const [teams, setTeams] = useState<CmsTeam[]>([]);
-  const [teamsLoading, setTeamsLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadTeams() {
-      try {
-        setTeamsLoading(true);
-        const data = await getCmsTeams();
-        setTeams(data);
-      } catch (error) {
-        console.error("Teams load error:", error);
-        showError("Could not load teams", getCmsErrorMessage(error));
-      } finally {
-        setTeamsLoading(false);
-      }
-    }
-
-    loadTeams();
-  }, [showError]);
-
-  function updateField(key: keyof typeof initialForm, value: string | boolean) {
+function updateField(key: keyof typeof initialForm, value: string | boolean) {
     setForm((current) => ({
       ...current,
       [key]: value,
@@ -206,26 +149,26 @@ export default function CreateFixturePage() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-500">
-              {teamsLoading
-                ? "Loading team names..."
-                : "Team fields use your Teams CMS names."}
+              "Team names come from the local team-names.txt file."
             </p>
 
             <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <TeamNameField
+              <LocalTeamNameField
                 label="Home Team"
                 value={form.homeTeam}
                 onChange={(value) => updateField("homeTeam", value)}
-                teams={teams}
                 datalistId="fixture-create-home-team-options"
+                labelClassName="text-sm font-bold uppercase tracking-wide text-slate-400"
+                inputClassName="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
               />
 
-              <TeamNameField
+              <LocalTeamNameField
                 label="Away Team"
                 value={form.awayTeam}
                 onChange={(value) => updateField("awayTeam", value)}
-                teams={teams}
                 datalistId="fixture-create-away-team-options"
+                labelClassName="text-sm font-bold uppercase tracking-wide text-slate-400"
+                inputClassName="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
               />
 
               <Field

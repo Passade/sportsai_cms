@@ -1,14 +1,13 @@
 "use client";
 
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import LocalTeamNameField from "@/components/local-team-name-field";
 import CmsImageUpload from "@/components/cms-image-upload";
 import {
-  CmsTeam,
   EventStatus,
   VodType,
   deleteCmsEventAndFixture,
   getCmsEventById,
-  getCmsTeams,
   updateCmsEvent,
 } from "@/lib/cms";
 import Link from "next/link";
@@ -107,42 +106,6 @@ function SelectField({
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
       </select>
-    </label>
-  );
-}
-
-function TeamNameField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  teams,
-  datalistId,
-  required = false,
-}: {
-  label?: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  teams: CmsTeam[];
-  datalistId: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="block">
-      {label ? <span className="mb-1 block text-xs font-bold text-[#8ba0b6]">{label}</span> : null}
-      <input
-        type="text"
-        list={datalistId}
-        required={required}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="h-11 w-full border border-slate-300 bg-white px-4 text-sm font-semibold text-[#29496d] outline-none placeholder:text-[#9fb0c2] focus:border-cyan-500"
-      />
-      <datalist id={datalistId}>
-        {teams.map((team) => <option key={team.$id} value={team.name || ""} />)}
-      </datalist>
     </label>
   );
 }
@@ -407,8 +370,6 @@ export default function EditEventPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [importingFixture, setImportingFixture] = useState(false);
-  const [teams, setTeams] = useState<CmsTeam[]>([]);
-  const [teamsLoading, setTeamsLoading] = useState(true);
 
   const [fmsFixtureCode, setFmsFixtureCode] = useState("");
   const [federation, setFederation] = useState("Zimbabwe Schools");
@@ -443,24 +404,7 @@ export default function EditEventPage() {
   const [isFeatured, setIsFeatured] = useState(false);
 
   const matchDate = useMemo(() => buildMatchDate(date, startTime), [date, startTime]);
-
-  useEffect(() => {
-    async function loadTeams() {
-      try {
-        setTeamsLoading(true);
-        const result = await getCmsTeams();
-        setTeams(result);
-      } catch (error) {
-        console.error(error);
-        alert("Could not load teams from Appwrite.");
-      } finally {
-        setTeamsLoading(false);
-      }
-    }
-    loadTeams();
-  }, []);
-
-  useEffect(() => {
+useEffect(() => {
     async function loadEvent() {
       try {
         setLoading(true);
@@ -704,10 +648,10 @@ export default function EditEventPage() {
               </div>
 
               <div className="col-span-12 md:col-span-4">
-                <TeamNameField label="Team A" value={homeTeam} onChange={setHomeTeam} teams={teams} datalistId="edit-home-team-options" placeholder={teamsLoading ? "Loading teams..." : "Heritage"} required />
+                <LocalTeamNameField label="Team A" value={homeTeam} onChange={setHomeTeam} datalistId="edit-home-team-options" placeholder="Heritage" required />
               </div>
               <div className="col-span-12 md:col-span-4">
-                <TeamNameField label="Team B" value={awayTeam} onChange={setAwayTeam} teams={teams} datalistId="edit-away-team-options" placeholder={teamsLoading ? "Loading teams..." : "Wise Owl"} required />
+                <LocalTeamNameField label="Team B" value={awayTeam} onChange={setAwayTeam} datalistId="edit-away-team-options" placeholder="Wise Owl" required />
               </div>
               <div className="col-span-6 md:col-span-2">
                 <TextField label="Age Group" value={ageGroup} onChange={setAgeGroup} placeholder="2nds vs 1st" />

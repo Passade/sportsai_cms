@@ -1,16 +1,15 @@
 "use client";
 import { databases, storage, account } from "@/lib/appwrite";
 import CmsAuthGuard from "@/components/cms-auth-guard";
+import LocalTeamNameField from "@/components/local-team-name-field";
 import {
   calculatePredictionPoints,
   CmsFixture,
   CmsPrediction,
-  CmsTeam,
   deleteCmsFixture,
   FixtureStatus,
   getCmsFixtureById,
   getCmsPredictionsForFixture,
-  getCmsTeams,
   normalizeDateTimeForInput,
   scoreCmsPredictionsForFixture,
   updateCmsFixture,
@@ -68,42 +67,6 @@ function Field({
   );
 }
 
-function TeamNameField({
-  label,
-  value,
-  onChange,
-  teams,
-  datalistId,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  teams: CmsTeam[];
-  datalistId: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-bold uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
-
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        list={datalistId}
-        placeholder="Start typing a team name..."
-        className="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
-      />
-
-      <datalist id={datalistId}>
-        {teams.map((team) => (
-          <option key={team.$id} value={team.name || ""} />
-        ))}
-      </datalist>
-    </label>
-  );
-}
-
 export default function EditFixturePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -111,7 +74,6 @@ export default function EditFixturePage() {
   const [form, setForm] = useState(initialForm);
   const [fixture, setFixture] = useState<CmsFixture | null>(null);
   const [predictions, setPredictions] = useState<CmsPrediction[]>([]);
-  const [teams, setTeams] = useState<CmsTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -122,10 +84,9 @@ export default function EditFixturePage() {
     try {
       setLoading(true);
 
-      const [fixtureDoc, predictionList, teamList] = await Promise.all([
+      const [fixtureDoc, predictionList] = await Promise.all([
         getCmsFixtureById(params.id),
         getCmsPredictionsForFixture(params.id),
-        getCmsTeams(),
       ]);
 
       const normalizedFixture: CmsFixture = {
@@ -147,7 +108,6 @@ export default function EditFixturePage() {
 
       setFixture(normalizedFixture);
       setPredictions(predictionList);
-      setTeams(teamList);
 
       setForm({
         homeTeam: normalizedFixture.homeTeam || "",
@@ -394,20 +354,22 @@ export default function EditFixturePage() {
               </h2>
 
               <div className="mt-6 grid gap-5 md:grid-cols-2">
-                <TeamNameField
+                <LocalTeamNameField
                   label="Home Team"
                   value={form.homeTeam}
                   onChange={(value) => updateField("homeTeam", value)}
-                  teams={teams}
                   datalistId="fixture-edit-home-team-options"
+                labelClassName="text-sm font-bold uppercase tracking-wide text-slate-400"
+                inputClassName="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
                 />
 
-                <TeamNameField
+                <LocalTeamNameField
                   label="Away Team"
                   value={form.awayTeam}
                   onChange={(value) => updateField("awayTeam", value)}
-                  teams={teams}
                   datalistId="fixture-edit-away-team-options"
+                labelClassName="text-sm font-bold uppercase tracking-wide text-slate-400"
+                inputClassName="mt-2 w-full rounded border border-slate-200 px-4 py-3 text-[#29496d] outline-none focus:border-cyan-400"
                 />
 
                 <Field

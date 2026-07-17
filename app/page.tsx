@@ -139,8 +139,8 @@ export default function DashboardPage() {
             <DashboardCard
               title="Community Posts"
               description="Manage community posts and interactions"
-              href="/community-posts"
-              badge="Marketing"
+              href="/community"
+              badge="Community"
             />
  
           </div>

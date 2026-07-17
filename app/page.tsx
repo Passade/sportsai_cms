@@ -135,6 +135,13 @@ export default function DashboardPage() {
               href="/sports-tier-cards"
               badge="Marketing"
             />
+
+            <DashboardCard
+              title="Community Posts"
+              description="Manage community posts and interactions"
+              href="/community-posts"
+              badge="Marketing"
+            />
  
           </div>
         </section>

@@ -146,7 +146,7 @@ export default function DashboardPage() {
             <DashboardCard
               title="Youtube Playlist"
               description="Manage youtube playlist"
-              href="/youtube-playlists"
+              href="/youtube-playlists/starter-plan"
               badge="Youtube Playlist"
             />
  

@@ -142,6 +142,14 @@ export default function DashboardPage() {
               href="/community"
               badge="Community"
             />
+
+            <DashboardCard
+              title="Youtube Playlist"
+              description="Manage youtube playlist"
+              href="/youtube-playlists"
+              badge="Youtube Playlist"
+            />
+ 
  
           </div>
         </section>

@@ -1,4 +1,4 @@
-import { config, databases, ID, Query, storage } from "./appwrite";
+import { config, databases, ID, Query } from "./appwrite";
 
 
 const CMS_DEFAULT_PAGE_SIZE = 25;
@@ -93,19 +93,6 @@ const CMS_COMMUNITY_POST_LIST_SELECT = [
   "isActive",
   "reactionsCount",
   "searchText",
-];
-
-const CMS_AUDIT_LOG_LIST_SELECT = [
-  "$id",
-  "$createdAt",
-  "action",
-  "entityType",
-  "entityId",
-  "entityTitle",
-  "message",
-  "actor",
-  "createdAt",
-  "metadata",
 ];
 
 const CMS_CHAT_LIST_SELECT = [
@@ -506,14 +493,6 @@ export async function createCmsTeam(input: CreateTeamInput) {
 
   clearCmsTeamsCache();
 
-  await createCmsAuditLog({
-    action: "create",
-    entityType: "team",
-    entityId: team.$id,
-    entityTitle: data.name,
-    message: `Created team ${data.name}`,
-  });
-
   return team;
 }
 
@@ -533,14 +512,6 @@ export async function updateCmsTeam(id: string, input: CreateTeamInput) {
 
   clearCmsTeamsCache();
 
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "team",
-    entityId: id,
-    entityTitle: data.name,
-    message: `Updated team ${data.name}`,
-  });
-
   return team;
 }
 
@@ -548,13 +519,6 @@ export async function deleteCmsTeam(id: string) {
   await databases.deleteDocument(config.databaseId, config.teamsCollectionId, id);
 
   clearCmsTeamsCache();
-
-  await createCmsAuditLog({
-    action: "delete",
-    entityType: "team",
-    entityId: id,
-    message: `Deleted team ${id}`,
-  });
 
   return true;
 }
@@ -581,14 +545,6 @@ export async function createCmsPlayer(input: CreatePlayerInput) {
     buildPlayerData(input)
   );
 
-  await createCmsAuditLog({
-    action: "create",
-    entityType: "player",
-    entityId: player.$id,
-    entityTitle: input.name.trim(),
-    message: `Created player ${input.name.trim()}`,
-  });
-
   return player;
 }
 
@@ -600,14 +556,6 @@ export async function updateCmsPlayer(id: string, input: CreatePlayerInput) {
     buildPlayerData(input)
   );
 
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "player",
-    entityId: id,
-    entityTitle: input.name.trim(),
-    message: `Updated player ${input.name.trim()}`,
-  });
-
   return player;
 }
 
@@ -617,13 +565,6 @@ export async function deleteCmsPlayer(id: string) {
     config.playersCollectionId,
     id
   );
-
-  await createCmsAuditLog({
-    action: "delete",
-    entityType: "player",
-    entityId: id,
-    message: `Deleted player ${id}`,
-  });
 
   return true;
 }
@@ -717,14 +658,6 @@ export async function createCmsFixture(input: CreateFixtureInput) {
     buildFixtureData(input)
   );
 
-  await createCmsAuditLog({
-    action: "create",
-    entityType: "fixture",
-    entityId: fixture.$id,
-    entityTitle: `${input.homeTeam.trim()} vs ${input.awayTeam.trim()}`,
-    message: `Created fixture ${input.homeTeam.trim()} vs ${input.awayTeam.trim()}`,
-  });
-
   return fixture;
 }
 
@@ -743,14 +676,6 @@ export async function updateCmsFixture(id: string, input: CreateFixtureInput) {
     id,
     buildFixtureData(input)
   );
-
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "fixture",
-    entityId: id,
-    entityTitle: `${input.homeTeam.trim()} vs ${input.awayTeam.trim()}`,
-    message: `Updated fixture ${input.homeTeam.trim()} vs ${input.awayTeam.trim()}`,
-  });
 
   return fixture;
 }
@@ -901,18 +826,6 @@ export async function scoreCmsPredictionsForFixture(fixtureId: string) {
     }
   );
 
-  await createCmsAuditLog({
-    action: "score",
-    entityType: "fixture",
-    entityId: fixtureId,
-    entityTitle: `${normalizedFixture.homeTeam} vs ${normalizedFixture.awayTeam}`,
-    message: `Scored predictions for ${normalizedFixture.homeTeam} vs ${normalizedFixture.awayTeam}`,
-    metadata: {
-      totalScored,
-      actualWinner: getActualWinner(normalizedFixture),
-    },
-  });
-
   return {
     totalScored,
     actualWinner: getActualWinner(normalizedFixture),
@@ -1023,14 +936,6 @@ export async function createCmsEvent(input: CreateEventInput) {
     }
   );
 
-  await createCmsAuditLog({
-    action: "create",
-    entityType: "event",
-    entityId: event.$id,
-    entityTitle: title,
-    message: `Created event ${title}`,
-  });
-
   return event;
 }
 
@@ -1072,14 +977,6 @@ export async function updateCmsEvent(id: string, input: CreateEventInput) {
     }
   );
 
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "event",
-    entityId: id,
-    entityTitle: title,
-    message: `Updated event ${title}`,
-  });
-
   return event;
 }
 
@@ -1113,17 +1010,6 @@ export async function updateCmsEventStatus(
       searchText: buildSearchText(data),
     }
   );
-
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "event",
-    entityId: id,
-    entityTitle: data.title,
-    message: `Changed event status to ${status}`,
-    metadata: {
-      status,
-    },
-  });
 
   return updatedEvent;
 }
@@ -1163,17 +1049,6 @@ export async function updateCmsEventVod(
     id,
     updateData
   );
-
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "event",
-    entityId: id,
-    message: `Updated VOD for event ${id}`,
-    metadata: {
-      vodType: input.vodType,
-      setStatusToVod: Boolean(input.setStatusToVod),
-    },
-  });
 
   return updatedEvent;
 }
@@ -1233,16 +1108,6 @@ export async function deleteCmsEventAndFixture(
   }
 
   await safeDeleteEvent(eventId);
-
-  await createCmsAuditLog({
-    action: "delete",
-    entityType: "event",
-    entityId: eventId,
-    message: `Deleted event ${eventId}`,
-    metadata: {
-      deletedFixtureIds: Array.from(fixtureIdsToDelete),
-    },
-  });
 
   return {
     deletedEventId: eventId,
@@ -1503,14 +1368,6 @@ export async function createCmsCommunityPost(
     }
   }
 
-  await createCmsAuditLog({
-    action: "create",
-    entityType: "community_post",
-    entityId: post.$id,
-    entityTitle: input.title.trim() || input.question.trim(),
-    message: `Created community post ${input.title.trim() || input.question.trim() || post.$id}`,
-  });
-
   return post;
 }
 
@@ -1524,14 +1381,6 @@ export async function updateCmsCommunityPost(
     id,
     buildCommunityPostUpdateData(input)
   );
-
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "community_post",
-    entityId: id,
-    entityTitle: input.title.trim() || input.question.trim(),
-    message: `Updated community post ${input.title.trim() || input.question.trim() || id}`,
-  });
 
   return post;
 }
@@ -1648,13 +1497,6 @@ export async function deleteCmsCommunityPost(id: string) {
     config.communityPostsCollectionId,
     id
   );
-
-  await createCmsAuditLog({
-    action: "delete",
-    entityType: "community_post",
-    entityId: id,
-    message: `Deleted community post ${id}`,
-  });
 
   return true;
 }
@@ -1973,42 +1815,6 @@ export async function getCmsCommunityPostsPage(options?: {
   } as CmsCommunityPostsPageResult;
 }
 
-export async function getCmsAuditLogsPage(cursor?: string) {
-  const queries = [
-    Query.orderDesc("createdAt"),
-    Query.limit(CMS_DEFAULT_PAGE_SIZE),
-    Query.select(CMS_AUDIT_LOG_LIST_SELECT),
-  ];
-
-  if (cursor) {
-    queries.push(Query.cursorAfter(cursor));
-  }
-
-  const result = await databases.listDocuments(
-    config.databaseId,
-    config.cmsAuditLogsCollectionId,
-    queries
-  );
-
-  const documents = result.documents.map((log: any) => ({
-    $id: log.$id,
-    action: log.action || "system",
-    entityType: log.entityType || "",
-    entityId: log.entityId || "",
-    entityTitle: log.entityTitle || "",
-    message: log.message || "",
-    actor: log.actor || "cms",
-    createdAt: log.createdAt || log.$createdAt || "",
-    metadata: log.metadata || "",
-  })) as CmsAuditLog[];
-
-  return {
-    documents,
-    total: result.total,
-    nextCursor: documents.length ? documents[documents.length - 1].$id : null,
-  } as CmsPageResult<CmsAuditLog>;
-}
-
 export type CmsFixtureChatsPageResult = {
   documents: CmsFixtureChat[];
   total: number;
@@ -2070,219 +1876,6 @@ export async function getCmsFixtureChatsPage(options?: {
 }
 
 
-/* DASHBOARD ANALYTICS */
-
-export type CmsDashboardAnalytics = {
-  eventsTotal: number;
-  eventsLive: number;
-  fixturesTotal: number;
-  fixturesUpcoming: number;
-  fixturesLive: number;
-  fixturesCompleted: number;
-  teamsTotal: number;
-  playersTotal: number;
-  communityPostsTotal: number;
-  communityPostsActive: number;
-  pollsActive: number;
-  predictionsTotal: number;
-  mediaTotal: number;
-};
-
-async function countCmsDocuments(
-  collectionId: string,
-  queries: string[] = []
-) {
-  const result = await databases.listDocuments(
-    config.databaseId,
-    collectionId,
-    [...queries, Query.limit(1)]
-  );
-
-  return result.total;
-}
-
-async function safeCountCmsDocuments(
-  collectionId: string,
-  queries: string[] = []
-) {
-  try {
-    return await countCmsDocuments(collectionId, queries);
-  } catch (error) {
-    console.warn("Dashboard count failed:", collectionId, error);
-    return 0;
-  }
-}
-
-async function safeCountCmsMediaFiles() {
-  try {
-    const result = await storage.listFiles(config.mediaBucketId, [
-      Query.limit(1),
-    ]);
-
-    return result.total;
-  } catch (error) {
-    console.warn("Dashboard media count failed:", error);
-    return 0;
-  }
-}
-
-export async function getCmsDashboardAnalytics() {
-  const [
-    eventsTotal,
-    eventsLive,
-    fixturesTotal,
-    fixturesUpcoming,
-    fixturesLive,
-    fixturesCompleted,
-    teamsTotal,
-    playersTotal,
-    communityPostsTotal,
-    communityPostsActive,
-    pollsActive,
-    predictionsTotal,
-    mediaTotal,
-  ] = await Promise.all([
-    safeCountCmsDocuments(config.streamsCollectionId),
-    safeCountCmsDocuments(config.streamsCollectionId, [
-      Query.equal("status", "live"),
-    ]),
-    safeCountCmsDocuments(config.fixturesCollectionId),
-    safeCountCmsDocuments(config.fixturesCollectionId, [
-      Query.equal("status", "upcoming"),
-    ]),
-    safeCountCmsDocuments(config.fixturesCollectionId, [
-      Query.equal("status", "live"),
-    ]),
-    safeCountCmsDocuments(config.fixturesCollectionId, [
-      Query.equal("status", "completed"),
-    ]),
-    safeCountCmsDocuments(config.teamsCollectionId),
-    safeCountCmsDocuments(config.playersCollectionId),
-    safeCountCmsDocuments(config.communityPostsCollectionId),
-    safeCountCmsDocuments(config.communityPostsCollectionId, [
-      Query.equal("isActive", true),
-    ]),
-    safeCountCmsDocuments(config.communityPostsCollectionId, [
-      Query.equal("kind", "poll"),
-      Query.equal("isActive", true),
-    ]),
-    safeCountCmsDocuments(config.predictionsCollectionId),
-    safeCountCmsMediaFiles(),
-  ]);
-
-  return {
-    eventsTotal,
-    eventsLive,
-    fixturesTotal,
-    fixturesUpcoming,
-    fixturesLive,
-    fixturesCompleted,
-    teamsTotal,
-    playersTotal,
-    communityPostsTotal,
-    communityPostsActive,
-    pollsActive,
-    predictionsTotal,
-    mediaTotal,
-  } as CmsDashboardAnalytics;
-}
-
-
-/* CMS AUDIT LOGS */
-
-export type CmsAuditAction =
-  | "create"
-  | "update"
-  | "delete"
-  | "upload"
-  | "score"
-  | "login"
-  | "logout"
-  | "system";
-
-export type CmsAuditLog = {
-  $id: string;
-  action: CmsAuditAction;
-  entityType: string;
-  entityId?: string;
-  entityTitle?: string;
-  message: string;
-  actor: string;
-  createdAt: string;
-  metadata?: string;
-};
-
-export type CreateCmsAuditLogInput = {
-  action: CmsAuditAction;
-  entityType: string;
-  entityId?: string;
-  entityTitle?: string;
-  message: string;
-  metadata?: Record<string, any> | string;
-};
-
-function normalizeAuditMetadata(metadata?: Record<string, any> | string) {
-  if (!metadata) return "";
-
-  if (typeof metadata === "string") {
-    return metadata;
-  }
-
-  try {
-    return JSON.stringify(metadata);
-  } catch {
-    return "";
-  }
-}
-
-const ENABLE_AUDIT_LOGS =
-  process.env.NEXT_PUBLIC_CMS_AUDIT_LOGS_ENABLED !== "false";
-
-export async function createCmsAuditLog(input: CreateCmsAuditLogInput) {
-  if (!ENABLE_AUDIT_LOGS) {
-    return null;
-  }
-
-  try {
-    return await databases.createDocument(
-      config.databaseId,
-      config.cmsAuditLogsCollectionId,
-      ID.unique(),
-      {
-        action: input.action,
-        entityType: input.entityType,
-        entityId: input.entityId || "",
-        entityTitle: input.entityTitle || "",
-        message: input.message,
-        actor: "cms",
-        createdAt: new Date().toISOString(),
-        metadata: normalizeAuditMetadata(input.metadata),
-      }
-    );
-  } catch (error) {
-    /*
-     * Audit logging should never block the CMS action itself.
-     * If permissions/env are wrong, log to console and let the main action continue.
-     */
-    console.warn("Audit log failed:", error);
-    return null;
-  }
-}
-
-export async function getCmsAuditLogs() {
-  const page = await getCmsAuditLogsPage();
-  return page.documents;
-}
-
-export async function deleteCmsAuditLog(id: string) {
-  return databases.deleteDocument(
-    config.databaseId,
-    config.cmsAuditLogsCollectionId,
-    id
-  );
-}
-
-
 /* FIXTURE CHAT ADMIN */
 
 export type CmsFixtureChat = {
@@ -2336,7 +1929,6 @@ export async function getCmsFixtureChatsByFixtureId(fixtureId: string) {
 }
 
 
-
 export async function updateCmsFixtureChat(
   id: string,
   input: UpdateCmsFixtureChatInput
@@ -2354,14 +1946,6 @@ export async function updateCmsFixtureChat(
     }
   );
 
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "fixture_chat",
-    entityId: id,
-    entityTitle: input.userName.trim(),
-    message: `Updated fixture chat message from ${input.userName.trim() || id}`,
-  });
-
   return normalizeCmsFixtureChat(updated);
 }
 
@@ -2374,13 +1958,6 @@ export async function clearCmsFixtureChatReactions(id: string) {
       reactions: "{}",
     }
   );
-
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "fixture_chat",
-    entityId: id,
-    message: `Cleared reactions for fixture chat ${id}`,
-  });
 
   return normalizeCmsFixtureChat(updated);
 }
@@ -2396,16 +1973,6 @@ export async function setCmsFixtureChatHidden(id: string, isHidden: boolean) {
     }
   );
 
-  await createCmsAuditLog({
-    action: "update",
-    entityType: "fixture_chat",
-    entityId: id,
-    message: `${isHidden ? "Hid" : "Unhid"} fixture chat ${id}`,
-    metadata: {
-      isHidden,
-    },
-  });
-
   return normalizeCmsFixtureChat(updated);
 }
 
@@ -2415,13 +1982,6 @@ export async function deleteCmsFixtureChat(id: string) {
     config.fixtureChatsCollectionId,
     id
   );
-
-  await createCmsAuditLog({
-    action: "delete",
-    entityType: "fixture_chat",
-    entityId: id,
-    message: `Deleted fixture chat ${id}`,
-  });
 
   return true;
 }

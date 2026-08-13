@@ -53,41 +53,19 @@ export default function DashboardPage() {
                 SportsAI CMS
               </p>
 
-              <h1 className="mt-2 text-4xl font-bold">Admin Dashboard</h1>
+              <h1 className="mt-2 text-4xl font-bold">Content Management</h1>
 
-             
+              <p className="mt-2 text-slate-500">
+                Choose the section you want to manage.
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Link
-                href="/events/create"
-                prefetch={false}
-                className="rounded bg-cyan-500 px-7 py-4 text-lg font-bold text-white transition hover:bg-cyan-600"
-              >
-                + Create Event
-              </Link>
-
-              <CmsLogoutButton />
-            </div>
+            <CmsLogoutButton />
           </div>
         </section>
 
         <section className="mx-auto max-w-7xl px-8 py-10">
-          <div className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="max-w-3xl">
-              <p className="text-sm font-bold uppercase tracking-[3px] text-cyan-600">
-                Quick Start
-              </p>
-
-              <h2 className="mt-3 text-3xl font-bold">
-                Manage your SportsAI content
-              </h2>
-
-              
-            </div>
-          </div>
-
-          <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             <DashboardCard
               title="Events / Live Streams"
               description="Create upcoming matches, live broadcasts and VOD entries."
@@ -101,8 +79,13 @@ export default function DashboardPage() {
               href="/fixtures"
               badge="Matches"
             />
-   
-         
+
+            <DashboardCard
+              title="Community Posts"
+              description="Create and manage polls, debates, image posts and voting options."
+              href="/community"
+              badge="Feed"
+            />
 
             <DashboardCard
               title="Fixture Chats"
@@ -111,8 +94,26 @@ export default function DashboardPage() {
               badge="Moderation"
             />
 
-         
+            <DashboardCard
+              title="Media Library"
+              description="Upload and manage event thumbnails, team logos, player photos and community images."
+              href="/media"
+              badge="Storage"
+            />
 
+            <DashboardCard
+              title="Bulk Import"
+              description="Upload CSV files to quickly create teams, players and fixtures."
+              href="/import"
+              badge="Tools"
+            />
+
+            <DashboardCard
+              title="Teams"
+              description="Create and manage team names, short names and logos."
+              href="/teams"
+              badge="Data"
+            />
 
             <DashboardCard
               title="Players"
@@ -120,64 +121,9 @@ export default function DashboardPage() {
               href="/players"
               badge="Data"
             />
-
-             <DashboardCard
-              title="Ads"
-              description="Manage Ad banners"
-              href="/ads"
-              badge="Marketing"
-            />
-
-
-             <DashboardCard
-              title="Sports Tier Cards"
-              description="Manage sports tier cards"
-              href="/sports-tier-cards"
-              badge="Marketing"
-            />
-
-            <DashboardCard
-              title="Community Posts"
-              description="Manage community posts and interactions"
-              href="/community"
-              badge="Community"
-            />
-
-            <DashboardCard
-              title="Youtube Playlist"
-              description="Manage youtube playlist"
-              href="/youtube-playlists/starter-plan"
-              badge="Youtube Playlist"
-            />
-
-            <DashboardCard
-              title="Team"
-              description="Teams"
-              href="/teams"
-              badge="Teams"
-            />
-
-            
- 
- 
           </div>
         </section>
       </main>
     </CmsAuthGuard>
   );
 }
-
-                  /*
-  I removed Media Library from the dashboard because it was not very useful and took too many requests to load.  
-*/     
-
-                  /*
-  I removed Bulk Uploads from the dashboard cause it took to many requests to load and was not very useful. 
-            /*
-
-  I removed the Teams card from the dashboard because it was redundant with the Players card, and the Teams functionality is already accessible through the Players section. This helps streamline the dashboard and reduce clutter for users.
-*/
-
-                /*
-  I removed Community Posts from the dashboard because it was not very useful and took too many requests to load. 
-*/     

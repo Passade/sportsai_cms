@@ -22,8 +22,7 @@ export const config = {
   communityPostReactionsCollectionId:
     process.env.NEXT_PUBLIC_APPWRITE_COMMUNITY_POST_REACTIONS_COLLECTION_ID!,
 
-  cmsAuditLogsCollectionId:
-    process.env.NEXT_PUBLIC_APPWRITE_CMS_AUDIT_LOGS_COLLECTION_ID!,
+
 
   mediaBucketId: process.env.NEXT_PUBLIC_APPWRITE_MEDIA_BUCKET_ID!,
 };

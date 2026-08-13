@@ -181,16 +181,6 @@ function CardPreview({
   );
 }
 
-const SPORT_OPTIONS = [
-  { label: "Rugby", value: "Rugby" },
-  { label: "Football", value: "Football" },
-  { label: "Hockey", value: "Hockey" },
-  { label: "Cricket", value: "Cricket" },
-  { label: "Basketball", value: "Basketball" },
-  { label: "Netball", value: "Netball" },
-  { label: "Waterpolo", value: "Waterpolo" },
-];
-
 const STATUS_OPTIONS = [
   { label: "Upcoming", value: "upcoming" },
   { label: "Live", value: "live" },
@@ -260,11 +250,8 @@ const FMS_SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_FMS_SUPABASE_ANON_KEY || "";
 
 function normaliseSport(value?: string | null) {
-  if (!value) return "Rugby";
-  const found = SPORT_OPTIONS.find(
-    (option) => option.value.toLowerCase() === value.toLowerCase()
-  );
-  return found?.value || value;
+  const cleanValue = String(value || "").trim();
+  return cleanValue || "Rugby";
 }
 
 function normaliseGender(value?: string | null) {
@@ -634,7 +621,7 @@ useEffect(() => {
                 <TextField label="Division" value={division} onChange={setDivision} placeholder="Rugby" />
               </div>
               <div className="col-span-12 md:col-span-4">
-                <SelectField label="Sport" value={sport} onChange={setSport} options={SPORT_OPTIONS} required />
+                <TextField label="Sport" value={sport} onChange={setSport} placeholder="Rugby, Football, Hockey..." required />
               </div>
 
               <div className="col-span-12 md:col-span-4">

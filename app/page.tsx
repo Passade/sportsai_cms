@@ -149,6 +149,15 @@ export default function DashboardPage() {
               href="/youtube-playlists/starter-plan"
               badge="Youtube Playlist"
             />
+
+            <DashboardCard
+              title="Team"
+              description="Teams"
+              href="/teams"
+              badge="Teams"
+            />
+
+            
  
  
           </div>

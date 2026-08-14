@@ -145,7 +145,7 @@ export default function DashboardPage() {
              <DashboardCard
               title="sponsors"
               description="sponser."
-              href="/sponsor-insight"
+              href="/sponsor-insights"
               badge="Content"
             />
           </div>

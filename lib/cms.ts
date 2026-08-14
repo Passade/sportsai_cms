@@ -22,6 +22,12 @@ const CMS_EVENT_LIST_SELECT = [
   "vodType",
   "vodUrl",
   "fixturesId",
+  "federation",
+  "division",
+  "sponsorName",
+  "campaignId",
+  "campaignName",
+  "analyticsEnabled",
   "searchText",
 ];
 
@@ -233,6 +239,12 @@ export type CreateEventInput = {
   sport: string;
   vodType: VodType;
   fixturesId: string;
+  federation?: string;
+  division?: string;
+  sponsorName?: string;
+  campaignId?: string;
+  campaignName?: string;
+  analyticsEnabled?: boolean;
 };
 
 export function buildSearchText(data: Record<string, any>) {
@@ -255,6 +267,11 @@ export function buildSearchText(data: Record<string, any>) {
     data.age,
     data.country,
     data.communityName,
+    data.federation,
+    data.division,
+    data.sponsorName,
+    data.campaignId,
+    data.campaignName,
     data.homeScore,
     data.awayScore,
     data.streamId,
@@ -929,6 +946,12 @@ export async function createCmsEvent(input: CreateEventInput) {
     sport: input.sport,
     vodType: input.vodType,
     fixturesId: input.fixturesId,
+    federation: String(input.federation || "").trim(),
+    division: String(input.division || "").trim(),
+    sponsorName: String(input.sponsorName || "").trim(),
+    campaignId: String(input.campaignId || "").trim(),
+    campaignName: String(input.campaignName || "").trim(),
+    analyticsEnabled: input.analyticsEnabled === true,
   };
 
   const event = await databases.createDocument(
@@ -970,6 +993,12 @@ export async function updateCmsEvent(id: string, input: CreateEventInput) {
     sport: input.sport,
     vodType: input.vodType,
     fixturesId: input.fixturesId,
+    federation: String(input.federation || "").trim(),
+    division: String(input.division || "").trim(),
+    sponsorName: String(input.sponsorName || "").trim(),
+    campaignId: String(input.campaignId || "").trim(),
+    campaignName: String(input.campaignName || "").trim(),
+    analyticsEnabled: input.analyticsEnabled === true,
   };
 
   const event = await databases.updateDocument(
@@ -1004,6 +1033,12 @@ export async function updateCmsEventStatus(
     competition: event.competition || "",
     sport: event.sport || "",
     vodType: event.vodType || "",
+    federation: event.federation || "",
+    division: event.division || "",
+    sponsorName: event.sponsorName || "",
+    campaignId: event.campaignId || "",
+    campaignName: event.campaignName || "",
+    analyticsEnabled: event.analyticsEnabled === true,
   };
 
   const updatedEvent = await databases.updateDocument(

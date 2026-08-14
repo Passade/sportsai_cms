@@ -5,15 +5,30 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_EVENTS_PER_BATCH = 50;
-const MAX_PAYLOAD_LENGTH = 24000;
+const MAX_PAYLOAD_LENGTH = 30000;
+
+type SponsorEventKind =
+  | "impression"
+  | "click"
+  | "qualified_view"
+  | "view_session";
+
+type SponsorPlacement = "home_banner" | "live" | "vod";
 
 type SponsorEvent = {
   id?: string;
-  kind?: "impression" | "click";
+  kind?: SponsorEventKind;
+  placement?: SponsorPlacement;
   bannerId?: string;
+  contentId?: string;
   sponsorName?: string;
   campaignId?: string;
   campaignName?: string;
+  federation?: string;
+  division?: string;
+  sport?: string;
+  matchTitle?: string;
+  viewSeconds?: number;
   sessionId?: string;
   occurredAt?: string;
 };
@@ -49,12 +64,38 @@ function validDay(value: string) {
 
 function cleanEvent(event: SponsorEvent): SponsorEvent | null {
   const id = cleanText(event.id, 80);
-  const kind = event.kind === "click" ? "click" : event.kind === "impression" ? "impression" : "";
+  const allowedKinds: SponsorEventKind[] = [
+    "impression",
+    "click",
+    "qualified_view",
+    "view_session",
+  ];
+  const allowedPlacements: SponsorPlacement[] = ["home_banner", "live", "vod"];
+
+  const kind = allowedKinds.includes(event.kind as SponsorEventKind)
+    ? (event.kind as SponsorEventKind)
+    : null;
+
+  const placement = allowedPlacements.includes(event.placement as SponsorPlacement)
+    ? (event.placement as SponsorPlacement)
+    : event.bannerId
+      ? "home_banner"
+      : null;
+
   const bannerId = cleanText(event.bannerId, 80);
+  const contentId = cleanText(event.contentId, 80);
   const sessionId = cleanText(event.sessionId, 100);
   const occurredAt = cleanText(event.occurredAt, 40);
 
-  if (!id || !kind || !bannerId || !sessionId || !occurredAt) {
+  if (!id || !kind || !placement || !sessionId || !occurredAt) {
+    return null;
+  }
+
+  if (placement === "home_banner" && !bannerId) {
+    return null;
+  }
+
+  if ((placement === "live" || placement === "vod") && !contentId) {
     return null;
   }
 
@@ -64,13 +105,25 @@ function cleanEvent(event: SponsorEvent): SponsorEvent | null {
     return null;
   }
 
+  const rawViewSeconds = Number(event.viewSeconds || 0);
+  const viewSeconds = Number.isFinite(rawViewSeconds)
+    ? Math.max(0, Math.min(24 * 60 * 60, Math.round(rawViewSeconds)))
+    : 0;
+
   return {
     id,
     kind,
+    placement,
     bannerId,
+    contentId,
     sponsorName: cleanText(event.sponsorName, 120),
     campaignId: cleanText(event.campaignId, 100),
     campaignName: cleanText(event.campaignName, 160),
+    federation: cleanText(event.federation, 140),
+    division: cleanText(event.division, 140),
+    sport: cleanText(event.sport, 100),
+    matchTitle: cleanText(event.matchTitle, 180),
+    viewSeconds,
     sessionId,
     occurredAt: occurredDate.toISOString(),
   };
@@ -82,7 +135,7 @@ export async function POST(request: NextRequest) {
 
     const batchId = cleanText(body.batchId, 36);
     const day = cleanText(body.day, 10);
-    const source = cleanText(body.source || "mobile-home-banner", 50);
+    const source = cleanText(body.source || "mobile-sponsor-analytics", 50);
 
     if (!validDocumentId(batchId)) {
       return NextResponse.json(
@@ -171,9 +224,6 @@ export async function POST(request: NextRequest) {
         }
       );
     } catch (error: any) {
-      // The mobile client uses a stable batch ID. If the response to a successful
-      // upload was lost, retrying the same batch results in 409 instead of a
-      // second analytics document. Treat that as success/idempotent replay.
       if (error?.code === 409) {
         return NextResponse.json({
           success: true,

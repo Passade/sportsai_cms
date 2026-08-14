@@ -389,6 +389,10 @@ export default function EditEventPage() {
   const [vodType, setVodType] = useState<VodType>("video");
   const [fixturesId, setFixturesId] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
+  const [sponsorName, setSponsorName] = useState("");
+  const [campaignId, setCampaignId] = useState("");
+  const [campaignName, setCampaignName] = useState("");
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
 
   const matchDate = useMemo(() => buildMatchDate(date, startTime), [date, startTime]);
 useEffect(() => {
@@ -415,6 +419,10 @@ useEffect(() => {
         setFixturesId(event.fixturesId || "");
         setDescription(event.description || "");
         setIsFeatured(Boolean(event.isFeatured));
+        setSponsorName(event.sponsorName || "");
+        setCampaignId(event.campaignId || "");
+        setCampaignName(event.campaignName || "");
+        setAnalyticsEnabled(Boolean(event.analyticsEnabled));
 
         setFmsFixtureCode(event.fmsFixtureCode || "");
         setFederation(event.federation || "Zimbabwe Schools");
@@ -552,6 +560,10 @@ useEffect(() => {
         commentators: commentators.trim(),
         stitchingBy: stitchingBy.trim(),
         verticalCard: verticalCard.trim(),
+        sponsorName: sponsorName.trim(),
+        campaignId: campaignId.trim(),
+        campaignName: campaignName.trim(),
+        analyticsEnabled,
       } as any);
 
       router.push("/events");
@@ -724,6 +736,34 @@ useEffect(() => {
                   orientation="vertical"
                 />
               </div>
+            </div>
+          </Fieldset>
+
+          <Fieldset title="Sponsor Analytics">
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-12 md:col-span-4">
+                <TextField label="Sponsor Name" value={sponsorName} onChange={setSponsorName} placeholder="Econet" />
+              </div>
+              <div className="col-span-12 md:col-span-4">
+                <TextField label="Campaign ID" value={campaignId} onChange={setCampaignId} placeholder="econet-schools-2026" />
+              </div>
+              <div className="col-span-12 md:col-span-4">
+                <TextField label="Campaign Name" value={campaignName} onChange={setCampaignName} placeholder="Schools Rugby 2026" />
+              </div>
+
+              <label className="col-span-12 flex items-center gap-3 rounded border border-cyan-200 bg-cyan-50 px-4 py-4 text-sm font-bold text-[#29496d]">
+                <input
+                  type="checkbox"
+                  checked={analyticsEnabled}
+                  onChange={(event) => setAnalyticsEnabled(event.target.checked)}
+                  className="h-5 w-5"
+                />
+                Track sponsor analytics for this Live / VOD event
+              </label>
+
+              <p className="col-span-12 text-xs font-semibold leading-5 text-slate-400">
+                When enabled, SportsAI reports anonymous qualified views and active viewing time by federation, sport and match title. No user name, email or phone number is included.
+              </p>
             </div>
           </Fieldset>
 

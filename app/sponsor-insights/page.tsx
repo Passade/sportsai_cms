@@ -371,7 +371,7 @@ export default function SponsorInsightsPage() {
 
           <div className="mt-8 overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
             <div className="border-b border-white/10 px-6 py-5">
-              <h2 className="text-xl font-bold">Campaign performance</h2>
+              <h2 className="text-xl font-bold">Campaigns performance</h2>
             </div>
 
             <div className="overflow-x-auto">

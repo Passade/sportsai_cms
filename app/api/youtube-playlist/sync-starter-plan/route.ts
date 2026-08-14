@@ -1,5 +1,3 @@
-"use server";
-
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Client, Databases, Query } from "node-appwrite";

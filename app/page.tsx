@@ -136,6 +136,18 @@ export default function DashboardPage() {
               href="/sport-tier-cards"
               badge="Content"
             />
+            <DashboardCard
+              title="ads"
+              description="ads."
+              href="/ads"
+              badge="Content"
+            />
+             <DashboardCard
+              title="sponser"
+              description="sponser."
+              href="/sponser-insights"
+              badge="Content"
+            />
           </div>
         </section>
       </main>

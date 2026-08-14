@@ -47,6 +47,17 @@ const STATUS_FILTERS: Array<EventStatus | "all"> = [
   "hidden",
 ];
 
+type VodTypeFilter = VodType | "all";
+
+const VOD_TYPE_FILTERS: Array<{
+  label: string;
+  value: VodTypeFilter;
+}> = [
+  { label: "All", value: "all" },
+  { label: "Video", value: "video" },
+  { label: "YouTube", value: "youtube" },
+];
+
 const EVENT_STATUS_OPTIONS: Array<{
   label: string;
   value: EventStatus;
@@ -405,6 +416,7 @@ export default function EventsPage() {
   const [pageNumber, setPageNumber] = useState(1);
 
   const [statusFilter, setStatusFilter] = useState<EventStatus | "all">("all");
+  const [vodTypeFilter, setVodTypeFilter] = useState<VodTypeFilter>("all");
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
 
@@ -424,6 +436,7 @@ export default function EventsPage() {
     cursor?: string;
     direction?: "next" | "previous";
     status?: EventStatus | "all";
+    vodType?: VodTypeFilter;
     search?: string;
     reset?: boolean;
   }) {
@@ -434,6 +447,7 @@ export default function EventsPage() {
         cursor: options?.cursor,
         direction: options?.direction,
         status: options?.status ?? statusFilter,
+        vodType: options?.vodType ?? vodTypeFilter,
         search: options?.search ?? appliedSearch,
         limit: PAGE_SIZE,
       });
@@ -557,6 +571,12 @@ export default function EventsPage() {
           current.filter((item) => item.$id !== event.$id)
         );
       }
+
+      if (vodTypeFilter !== "all" && input.vodType !== vodTypeFilter) {
+        setEvents((current) =>
+          current.filter((item) => item.$id !== event.$id)
+        );
+      }
     } catch (error: any) {
       console.error("VOD update error:", error);
 
@@ -591,6 +611,18 @@ export default function EventsPage() {
 
     await loadEvents({
       status,
+      vodType: vodTypeFilter,
+      search: appliedSearch,
+      reset: true,
+    });
+  }
+
+  async function handleVodTypeChangeFilter(vodType: VodTypeFilter) {
+    setVodTypeFilter(vodType);
+
+    await loadEvents({
+      status: statusFilter,
+      vodType,
       search: appliedSearch,
       reset: true,
     });
@@ -599,6 +631,7 @@ export default function EventsPage() {
   async function refreshEvents() {
     await loadEvents({
       status: statusFilter,
+      vodType: vodTypeFilter,
       search: appliedSearch,
       reset: true,
     });
@@ -611,6 +644,7 @@ export default function EventsPage() {
       cursor: nextCursor,
       direction: "next",
       status: statusFilter,
+      vodType: vodTypeFilter,
       search: appliedSearch,
     });
 
@@ -624,6 +658,7 @@ export default function EventsPage() {
       cursor: previousCursor,
       direction: "previous",
       status: statusFilter,
+      vodType: vodTypeFilter,
       search: appliedSearch,
     });
 
@@ -678,6 +713,7 @@ export default function EventsPage() {
 
       loadEvents({
         status: statusFilter,
+        vodType: vodTypeFilter,
         search: nextSearch,
         reset: true,
       });
@@ -740,7 +776,7 @@ export default function EventsPage() {
 
         <section className="mx-auto max-w-7xl px-8 py-8">
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr] lg:items-start">
+            <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
               <div>
                 <label className="text-sm font-bold uppercase tracking-wide text-slate-400">
                   Server search
@@ -789,6 +825,42 @@ export default function EventsPage() {
                   })}
                 </div>
               </div>
+
+              <div>
+                <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                  VOD type filter
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {VOD_TYPE_FILTERS.map((option) => {
+                    const active = vodTypeFilter === option.value;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleVodTypeChangeFilter(option.value)}
+                        disabled={loading}
+                        className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                          active
+                            ? option.value === "youtube"
+                              ? "bg-red-500 text-white"
+                              : option.value === "video"
+                                ? "bg-purple-600 text-white"
+                                : "bg-cyan-500 text-white"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-2 text-xs text-slate-400">
+                  Filter Appwrite records by vodType.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -822,7 +894,7 @@ export default function EventsPage() {
                   No events found
                 </p>
                 <p className="mt-2 text-slate-500">
-                  Try another status or search term.
+                  Try another status, VOD type, or search term.
                 </p>
               </div>
             )}

@@ -121,6 +121,21 @@ export default function DashboardPage() {
               href="/players"
               badge="Data"
             />
+
+
+            <DashboardCard
+              title="Youtube Playlists"
+              description="Create and manage Youtube playlists for your content."
+              href="/youtube-playlists/starter-plan"
+              badge="Content"
+            />
+
+            <DashboardCard
+              title="Sport Tier cards"
+              description="Create and manage Sport Tier cards for your content."
+              href="/sport-tier-cards"
+              badge="Content"
+            />
           </div>
         </section>
       </main>

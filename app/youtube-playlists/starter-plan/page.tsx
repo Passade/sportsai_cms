@@ -89,9 +89,7 @@ export default function StarterPlanYouTubeSyncPage() {
         const starterCards = result.documents
           .filter((card) => card.active !== false)
           .filter((card) => isStarterPlan(card.category))
-          .sort((a, b) =>
-            getCardTitle(a).localeCompare(getCardTitle(b))
-          );
+          .sort((a, b) => getCardTitle(a).localeCompare(getCardTitle(b)));
 
         setCards(starterCards);
 
@@ -108,9 +106,7 @@ export default function StarterPlanYouTubeSyncPage() {
             : "Could not load Starter Plan cards."
         );
       } finally {
-        if (mounted) {
-          setLoadingCards(false);
-        }
+        if (mounted) setLoadingCards(false);
       }
     }
 
@@ -166,14 +162,14 @@ export default function StarterPlanYouTubeSyncPage() {
       setMessage(
         `${payload.message} ${payload.skipped} existing video${
           payload.skipped === 1 ? "" : "s"
-        } skipped.`
+        } skipped. ${payload.unavailable} unavailable video${
+          payload.unavailable === 1 ? "" : "s"
+        } ignored.`
       );
     } catch (error) {
       setIsError(true);
       setMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not sync the playlist."
+        error instanceof Error ? error.message : "Could not sync the playlist."
       );
     } finally {
       setSyncing(false);
@@ -194,10 +190,9 @@ export default function StarterPlanYouTubeSyncPage() {
             </h1>
 
             <p className="mt-3 leading-7 text-slate-400">
-              Choose one Starter Plan category card, paste its YouTube
-              playlist once, and import only videos that are not already saved
-              in Appwrite. The mobile card page will show them in a horizontal
-              carousel.
+              Manual sync only. Choose one Starter Plan category card, paste a
+              playlist, and import only YouTube videos that are not already
+              saved in Appwrite.
             </p>
 
             <div className="mt-8 space-y-6">

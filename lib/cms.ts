@@ -844,6 +844,7 @@ export async function getCmsEventsPage(options?: {
   cursor?: string;
   direction?: "next" | "previous";
   status?: EventStatus | "all";
+  vodType?: VodType | "all";
   search?: string;
   limit?: number;
 }) {
@@ -858,6 +859,10 @@ export async function getCmsEventsPage(options?: {
 
   if (options?.status && options.status !== "all") {
     queries.push(Query.equal("status", options.status));
+  }
+
+  if (options?.vodType && options.vodType !== "all") {
+    queries.push(Query.equal("vodType", options.vodType));
   }
 
   // Search intentionally disabled for community posts.

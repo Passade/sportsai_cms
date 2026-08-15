@@ -24,10 +24,6 @@ const CMS_EVENT_LIST_SELECT = [
   "fixturesId",
   "federation",
   "division",
-  "sponsorName",
-  "campaignId",
-  "campaignName",
-  "analyticsEnabled",
   "searchText",
 ];
 
@@ -871,7 +867,6 @@ export async function getCmsEventsPage(options?: {
   const queries = [
     Query.orderDesc("$createdAt"),
     Query.limit(limit),
-    Query.select(CMS_EVENT_LIST_SELECT),
   ];
 
   if (options?.status && options.status !== "all") {
@@ -893,6 +888,14 @@ export async function getCmsEventsPage(options?: {
   if (options?.cursor && options.direction === "previous") {
     queries.push(Query.cursorBefore(options.cursor));
   }
+
+  console.log("[CMS EVENTS] querying streams without Query.select", {
+    databaseId: config.databaseId,
+    streamsCollectionId: config.streamsCollectionId,
+    status: options?.status || "all",
+    vodType: options?.vodType || "all",
+    limit,
+  });
 
   const result = await databases.listDocuments(
     config.databaseId,
